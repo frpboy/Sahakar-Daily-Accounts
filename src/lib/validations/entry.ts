@@ -6,25 +6,25 @@ export const dailyEntrySchema = z.object({
     .max(new Date(), { message: "Cannot enter data for future dates" }),
   outletId: z.string().uuid("Invalid outlet selected"),
 
-  // Sales (Coerce converts string inputs from the form to numbers)
+  // Total Sales Amount (entered manually)
+  totalSalesAmount: z.coerce
+    .number()
+    .min(0, "Total sales amount cannot be negative")
+    .default(0),
+
+  // Sales breakdown by payment method
   saleCash: z.coerce
     .number()
     .min(0, "Cash amount cannot be negative")
     .default(0),
-  saleUpi: z.coerce
-    .number()
-    .min(0, "UPI amount cannot be negative")
-    .default(0),
+  saleUpi: z.coerce.number().min(0, "UPI amount cannot be negative").default(0),
   saleCredit: z.coerce
     .number()
     .min(0, "Credit amount cannot be negative")
     .default(0),
 
   // Operations
-  expenses: z.coerce
-    .number()
-    .min(0, "Expenses cannot be negative")
-    .default(0),
+  expenses: z.coerce.number().min(0, "Expenses cannot be negative").default(0),
   purchase: z.coerce
     .number()
     .min(0, "Purchase amount cannot be negative")

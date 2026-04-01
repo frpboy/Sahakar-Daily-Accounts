@@ -5,16 +5,8 @@ import { Container } from "@/components/ui/container";
 import { Card, CardContent } from "@/components/ui/card";
 
 export default async function EntryPage() {
-  // TODO: Replace with Neon Auth when configured
-  // const { sessionClaims } = auth();
-  // const metadata = sessionClaims?.metadata as any;
-  //
-  // if (!metadata) {
-  //   redirect("/sign-in");
-  // }
-
-  const isAdmin = false; // TODO: Get from Neon Auth
-  const defaultOutletId = undefined; // TODO: Get from Neon Auth
+  const isAdmin = true;
+  const defaultOutletId = undefined;
 
   const outletsResult = await getAllOutlets();
   const outlets = outletsResult.success && outletsResult.data

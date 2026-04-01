@@ -1,5 +1,19 @@
-import { pgTable, text, timestamp, date, numeric, uuid } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  timestamp,
+  date,
+  numeric,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+
+// User Roles
+export type UserRole =
+  | "admin"
+  | "ho_accountant"
+  | "outlet_manager"
+  | "outlet_accountant";
 
 // Outlets Table
 export const outlets = pgTable("outlets", {
@@ -9,12 +23,15 @@ export const outlets = pgTable("outlets", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// Users Table (Extension of Neon Auth Users)
+// Users Table
 export const users = pgTable("users", {
-  id: text("id").primaryKey(), // Matches Neon Auth User ID
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  role: text("role").$type<"admin" | "manager">().default("manager"),
+  phone: text("phone"),
+  role: text("role").$type<UserRole>().default("outlet_manager"),
   outletId: uuid("outlet_id").references(() => outlets.id),
+  isActive: text("is_active").default("true"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -24,21 +41,27 @@ export const dailyAccounts = pgTable(
   "daily_accounts",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    outletId: uuid("outlet_id").notNull().references(() => outlets.id, { onDelete: "cascade" }),
+    outletId: uuid("outlet_id")
+      .notNull()
+      .references(() => outlets.id, { onDelete: "cascade" }),
     date: date("date").notNull(),
 
     // Sales Fields (NUMERIC for precise decimal handling)
     saleCash: numeric("sale_cash", { precision: 12, scale: 2 }).default("0"),
     saleUpi: numeric("sale_upi", { precision: 12, scale: 2 }).default("0"),
-    saleCredit: numeric("sale_credit", { precision: 12, scale: 2 }).default("0"),
+    saleCredit: numeric("sale_credit", { precision: 12, scale: 2 }).default(
+      "0"
+    ),
 
     // Operational Fields
     expenses: numeric("expenses", { precision: 12, scale: 2 }).default("0"),
     purchase: numeric("purchase", { precision: 12, scale: 2 }).default("0"),
-    closingStock: numeric("closing_stock", { precision: 12, scale: 2 }).default("0"),
+    closingStock: numeric("closing_stock", { precision: 12, scale: 2 }).default(
+      "0"
+    ),
 
     // Metadata
-    createdBy: text("created_by").notNull(), // Neon Auth User ID
+    createdBy: text("created_by").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
@@ -57,7 +80,9 @@ export const accountCategories = pgTable("account_categories", {
 export const accountGroups = pgTable("account_groups", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: text("name").notNull(),
-  categoryId: uuid("category_id").notNull().references(() => accountCategories.id),
+  categoryId: uuid("category_id")
+    .notNull()
+    .references(() => accountCategories.id),
   parentGroupId: uuid("parent_group_id"), // Self-referencing for hierarchy
 });
 
@@ -65,7 +90,9 @@ export const chartOfAccounts = pgTable("chart_of_accounts", {
   id: uuid("id").defaultRandom().primaryKey(),
   code: text("code").notNull().unique(), // e.g., "1001", "2005"
   name: text("name").notNull(),
-  groupId: uuid("group_id").notNull().references(() => accountGroups.id),
+  groupId: uuid("group_id")
+    .notNull()
+    .references(() => accountGroups.id),
   description: text("description"),
   isActive: text("is_active").default("true"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -74,6 +101,14 @@ export const chartOfAccounts = pgTable("chart_of_accounts", {
 // Relations
 export const outletsRelations = relations(outlets, ({ many }) => ({
   dailyAccounts: many(dailyAccounts),
+  users: many(users),
+}));
+
+export const usersRelations = relations(users, ({ one }) => ({
+  outlet: one(outlets, {
+    fields: [users.outletId],
+    references: [outlets.id],
+  }),
 }));
 
 export const dailyAccountsRelations = relations(dailyAccounts, ({ one }) => ({
@@ -83,30 +118,38 @@ export const dailyAccountsRelations = relations(dailyAccounts, ({ one }) => ({
   }),
 }));
 
-export const accountCategoriesRelations = relations(accountCategories, ({ many }) => ({
-  groups: many(accountGroups),
-}));
+export const accountCategoriesRelations = relations(
+  accountCategories,
+  ({ many }) => ({
+    groups: many(accountGroups),
+  })
+);
 
-export const accountGroupsRelations = relations(accountGroups, ({ one, many }) => ({
-  category: one(accountCategories, {
-    fields: [accountGroups.categoryId],
-    references: [accountCategories.id],
-  }),
-  parentGroup: one(accountGroups, {
-    fields: [accountGroups.parentGroupId],
-    references: [accountGroups.id],
-    relationName: "group_hierarchy",
-  }),
-  childGroups: many(accountGroups, {
-    relationName: "group_hierarchy",
-  }),
-  accounts: many(chartOfAccounts),
-}));
+export const accountGroupsRelations = relations(
+  accountGroups,
+  ({ one, many }) => ({
+    category: one(accountCategories, {
+      fields: [accountGroups.categoryId],
+      references: [accountCategories.id],
+    }),
+    parentGroup: one(accountGroups, {
+      fields: [accountGroups.parentGroupId],
+      references: [accountGroups.id],
+      relationName: "group_hierarchy",
+    }),
+    childGroups: many(accountGroups, {
+      relationName: "group_hierarchy",
+    }),
+    accounts: many(chartOfAccounts),
+  })
+);
 
-export const chartOfAccountsRelations = relations(chartOfAccounts, ({ one }) => ({
-  group: one(accountGroups, {
-    fields: [chartOfAccounts.groupId],
-    references: [accountGroups.id],
-  }),
-}));
-
+export const chartOfAccountsRelations = relations(
+  chartOfAccounts,
+  ({ one }) => ({
+    group: one(accountGroups, {
+      fields: [chartOfAccounts.groupId],
+      references: [accountGroups.id],
+    }),
+  })
+);

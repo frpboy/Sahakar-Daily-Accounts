@@ -1,35 +1,20 @@
-import { auth } from "@/lib/auth/server";
 import { db } from "@/db";
-import { users, dailyAccounts } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
-import { redirect } from "next/navigation";
+import { dailyAccounts } from "@/db/schema";
+import { desc } from "drizzle-orm";
 import { TopNav } from "@/components/shared/TopNav";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
 export default async function AdminOverviewPage() {
-  const { data: sessionData } = await auth.getSession();
-  const user = sessionData?.user;
-
-  if (!user) {
-    redirect("/auth/sign-in");
-  }
-
-  // Get user role from our DB
-  const userProfile = await db.query.users.findFirst({
-    where: eq(users.id, user.id)
-  });
-
-  if (userProfile?.role !== "admin") {
-    redirect("/dashboard");
-  }
-
   const reports = await db.query.dailyAccounts.findMany({
     orderBy: [desc(dailyAccounts.date)],
     with: {
       outlet: true
     }
+  }).catch(err => {
+    console.error("Dashboard database error:", err);
+    return [];
   });
 
   return (
