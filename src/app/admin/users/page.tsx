@@ -41,7 +41,7 @@ export default async function UsersPage() {
 
   return (
     <>
-      <TopNav isAdmin={true} />
+      <TopNav />
       <Container className="py-8">
         <div className="flex justify-between items-center mb-8">
           <div>

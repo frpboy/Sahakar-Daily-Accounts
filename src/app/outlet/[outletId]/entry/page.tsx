@@ -16,22 +16,22 @@ export default async function OutletEntryPage({ params }: PageProps) {
 
   // Get user role from our DB
   const outlet = await db.query.outlets.findFirst({
-    where: eq(outlets.id, outletId)
+    where: eq(outlets.id, outletId),
   });
 
   if (!outlet) {
     notFound();
   }
 
-  const isAdmin = true; 
-  
+  const isAdmin = true;
+
   // We'll pass the list of outlets just in case the form needs it
   // But for manager, it should be auto-selected as user's outlet
   const allOutlets = await db.query.outlets.findMany();
 
   return (
     <>
-      <TopNav isAdmin={isAdmin} />
+      <TopNav />
       <Container className="py-8">
         <div className="max-w-3xl mx-auto text-center mb-8">
           <h1 className="text-2xl font-bold">Daily Entry - {outlet.name}</h1>
@@ -40,7 +40,7 @@ export default async function OutletEntryPage({ params }: PageProps) {
 
         <div className="max-w-3xl mx-auto">
           <DailyEntryForm
-            outlets={allOutlets.map(o => ({ id: o.id, name: o.name }))}
+            outlets={allOutlets.map((o) => ({ id: o.id, name: o.name }))}
             defaultOutletId={outletId}
             isAdmin={isAdmin}
           />
