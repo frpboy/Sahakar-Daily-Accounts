@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import { TopNav } from "@/components/shared/TopNav";
+
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -27,32 +25,21 @@ interface OwnReportEntry {
 }
 
 export default function OwnReportsPage() {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
   const [data, setData] = useState<OwnReportEntry[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isLoading, isAuthenticated, router]);
+  // Default to a sample outlet ID since auth is disabled, or use the first available one.
+  // In a real scenario without auth, we might want to let the user pick an outlet.
+  const sampleOutletId = "f67bfedb-5141-4b12-a388-72dca5cf532a";
 
   useEffect(() => {
-    if (user) {
-      fetchOwnData();
-    }
-  }, [user]);
+    fetchOwnData();
+  }, []);
 
   async function fetchOwnData() {
-    if (!user?.outletId) {
-      setIsDataLoading(false);
-      return;
-    }
-
     try {
       const response = await fetch(
-        `/api/own-reports?outletId=${user.outletId}`
+        `/api/own-reports?outletId=${sampleOutletId}`
       );
       if (response.ok) {
         const result = await response.json();
@@ -104,17 +91,10 @@ export default function OwnReportsPage() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${user?.outletName || "outlet"}-report-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `report-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
   }
 
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
-  }
 
   const totals = data.reduce(
     (acc, row) => {
@@ -132,7 +112,6 @@ export default function OwnReportsPage() {
 
   return (
     <>
-      <TopNav />
       <Container className="py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -140,7 +119,7 @@ export default function OwnReportsPage() {
               My Outlet Reports
             </h1>
             <p className="text-gray-500 mt-1">
-              {user.outletName || "Your outlet"} - Last 30 days
+              Outlet Report - Last 30 days
             </p>
           </div>
           <Button

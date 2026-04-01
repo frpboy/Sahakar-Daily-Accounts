@@ -3,7 +3,6 @@ import { outlets } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 // import { redirect } from "next/navigation";
-import { TopNav } from "@/components/shared/TopNav";
 import { DailyEntryForm } from "@/components/forms/DailyEntryForm";
 import { Container } from "@/components/ui/container";
 
@@ -31,7 +30,6 @@ export default async function OutletEntryPage({ params }: PageProps) {
 
   return (
     <>
-      <TopNav />
       <Container className="py-8">
         <div className="max-w-3xl mx-auto text-center mb-8">
           <h1 className="text-2xl font-bold">Daily Entry - {outlet.name}</h1>

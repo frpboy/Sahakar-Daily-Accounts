@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { TopNav } from "@/components/shared/TopNav";
+
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,6 @@ export default async function UsersPage() {
 
   return (
     <>
-      <TopNav />
       <Container className="py-8">
         <div className="flex justify-between items-center mb-8">
           <div>

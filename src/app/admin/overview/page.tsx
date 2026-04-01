@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { dailyAccounts } from "@/db/schema";
 import { desc } from "drizzle-orm";
-import { TopNav } from "@/components/shared/TopNav";
+
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
@@ -21,7 +21,6 @@ export default async function AdminOverviewPage() {
 
   return (
     <>
-      <TopNav />
       <Container className="py-8">
         <div className="flex justify-between items-center mb-8">
           <div>

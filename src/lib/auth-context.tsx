@@ -3,8 +3,6 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
   ReactNode,
 } from "react";
 import { UserRole } from "@/db/schema";
@@ -30,41 +28,26 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const DEFAULT_USER: User = {
+  id: "admin-rahul",
+  name: "Rahul",
+  email: "frpboy12@gmail.com",
+  phone: null,
+  role: "admin",
+  outletId: null,
+  outletName: null,
+  isActive: true,
+};
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  async function checkAuth() {
-    try {
-      const stored = localStorage.getItem("doams_user");
-      if (stored) {
-        const userData = JSON.parse(stored);
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error("Auth check failed:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function logout() {
-    localStorage.removeItem("doams_user");
-    setUser(null);
-  }
-
   return (
     <AuthContext.Provider
       value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        setUser,
-        logout,
+        user: DEFAULT_USER,
+        isLoading: false,
+        isAuthenticated: true,
+        setUser: () => {},
+        logout: () => {},
       }}
     >
       {children}

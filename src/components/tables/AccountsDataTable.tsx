@@ -20,7 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
 export interface DailyAccountRow {
   id: string;
@@ -47,7 +47,9 @@ export function AccountsDataTable({ data, isLoading }: DataTableProps) {
       {
         accessorKey: "date",
         header: "Date",
-        cell: (info) => formatDate(info.getValue() as string),
+        cell: (info) => (
+          <span className="font-mono">{formatDate(info.getValue() as string).toUpperCase()}</span>
+        ),
         size: 100,
       },
       {
@@ -98,18 +100,22 @@ export function AccountsDataTable({ data, isLoading }: DataTableProps) {
         size: 120,
       },
       {
+        id: "profit",
         accessorKey: "profit",
-        header: "Profit",
+        header: "Profit/Loss",
         cell: (info) => {
           const profit = info.getValue() as number;
           const isPositive = profit >= 0;
           return (
-            <span className={isPositive ? "text-green-600" : "text-red-600"}>
+            <span className={cn(
+               "font-bold font-mono px-2 py-0.5 rounded-sm",
+               isPositive ? "text-emerald-700 bg-emerald-50" : "text-red-700 bg-red-50"
+            )}>
               {formatCurrency(profit)}
             </span>
           );
         },
-        size: 100,
+        size: 120,
       },
     ],
     []
@@ -143,36 +149,47 @@ export function AccountsDataTable({ data, isLoading }: DataTableProps) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border overflow-x-auto">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="whitespace-nowrap">
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="whitespace-nowrap">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+      <div className="rounded-sm border border-gray-200 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto max-h-[600px] scrollbar-thin scrollbar-thumb-gray-300">
+          <Table className="border-collapse">
+            <TableHeader className="sticky top-0 bg-gray-50 z-10 shadow-sm">
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="border-b border-gray-200 hover:bg-transparent">
+                  {headerGroup.headers.map((header) => (
+                    <TableHead 
+                      key={header.id} 
+                      className="h-10 px-4 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-gray-500 whitespace-nowrap align-middle"
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell 
+                      key={cell.id} 
+                      className={cn(
+                        "px-4 py-2 text-sm text-gray-700 whitespace-nowrap",
+                        cell.column.id !== "outletName" && cell.column.id !== "date" ? "font-mono text-right" : ""
+                      )}
+                    >
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
       {/* Pagination */}

@@ -1,9 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
-import { TopNav } from "@/components/shared/TopNav";
 import { Container } from "@/components/ui/container";
 import {
   formatCurrency,
@@ -11,8 +8,9 @@ import {
   calculateProfit,
 } from "@/lib/utils";
 import { format } from "date-fns";
-import { Download } from "lucide-react";
+import { FileText, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { exportToCSV, exportToPDF } from "@/lib/export";
 import {
   Select,
   SelectContent,
@@ -41,32 +39,26 @@ interface Outlet {
 }
 
 export default function ReportsPage() {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
   const [data, setData] = useState<ReportEntry[]>([]);
   const [outlets, setOutlets] = useState<Outlet[]>([]);
-  const [selectedOutletId, setSelectedOutletId] = useState<string>("");
+  const [selectedOutletId, setSelectedOutletId] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [isLoading, isAuthenticated, router]);
-
-  useEffect(() => {
-    if (user && (user.role === "admin" || user.role === "ho_accountant")) {
-      fetchData();
-    }
-  }, [user, selectedOutletId]);
+    fetchData();
+  }, [selectedOutletId, startDate, endDate]);
 
   async function fetchData() {
     setIsDataLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedOutletId) {
+      if (selectedOutletId && selectedOutletId !== "all") {
         params.set("outletId", selectedOutletId);
       }
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
 
       const [reportsResponse, outletsResponse] = await Promise.all([
         fetch(`/api/all-reports?${params.toString()}`),
@@ -90,62 +82,28 @@ export default function ReportsPage() {
   }
 
   function handleExportCSV() {
-    if (data.length === 0) return;
-
-    const headers = [
-      "Date",
-      "Outlet",
-      "Cash",
-      "UPI",
-      "Credit",
-      "Total Sales",
-      "Expenses",
-      "Purchase",
-      "Closing Stock",
-      "Profit",
-    ];
-    const rows = data.map((row) => {
-      const totalSales = calculateTotalSales(
-        row.saleCash,
-        row.saleUpi,
-        row.saleCredit
-      );
-      const profit = calculateProfit(totalSales, row.expenses, row.purchase);
-      return [
-        row.date,
-        row.outletName,
-        row.saleCash.toFixed(2),
-        row.saleUpi.toFixed(2),
-        row.saleCredit.toFixed(2),
-        totalSales.toFixed(2),
-        row.expenses.toFixed(2),
-        row.purchase.toFixed(2),
-        row.closingStock.toFixed(2),
-        profit.toFixed(2),
-      ];
+    const exportData = data.map(row => {
+      const total = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
+      return {
+        Date: format(new Date(row.date), "yyyy-MM-dd"),
+        Outlet: row.outletName,
+        Cash: row.saleCash,
+        UPI: row.saleUpi,
+        Credit: row.saleCredit,
+        Total: total,
+        Expenses: row.expenses,
+        Purchase: row.purchase,
+        ClosingStock: row.closingStock,
+        Profit: calculateProfit(total, row.expenses, row.purchase)
+      };
     });
-
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `all-reports-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
+    exportToCSV(exportData, `Sahakar_Reports_${selectedOutletId}_${format(new Date(), "yyyyMMdd")}`);
   }
 
-  if (isLoading || !user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    );
+  function handleExportPDF() {
+    exportToPDF("reports-table-container", `Sahakar Financial Report - ${selectedOutletId === 'all' ? 'All Outlets' : data[0]?.outletName || ''}`);
   }
 
-  if (user.role !== "admin" && user.role !== "ho_accountant") {
-    router.push("/reports/own");
-    return null;
-  }
 
   const totals = data.reduce(
     (acc, row) => {
@@ -161,9 +119,7 @@ export default function ReportsPage() {
   );
 
   return (
-    <>
-      <TopNav />
-      <Container className="py-8">
+    <Container className="py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">All Reports</h1>
@@ -171,33 +127,45 @@ export default function ReportsPage() {
               View and analyze all outlet data
             </p>
           </div>
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            disabled={data.length === 0}
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              onClick={handleExportCSV}
+              variant="outline"
+              disabled={data.length === 0}
+              className="h-10 border-gray-200"
+            >
+              <FileText className="h-4 w-4 mr-2 text-green-600" />
+              Export CSV
+            </Button>
+            <Button
+              onClick={handleExportPDF}
+              variant="outline"
+              disabled={data.length === 0}
+              className="h-10 border-gray-200"
+            >
+              <Printer className="h-4 w-4 mr-2 text-blue-600" />
+              Print PDF
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="flex gap-4 items-center">
-              <div className="w-64">
-                <label className="text-sm font-medium mb-2 block">
-                  Filter by Outlet
+            <div className="flex flex-wrap gap-6 items-end">
+              <div className="min-w-[240px] flex-1">
+                <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">
+                  Outlet
                 </label>
                 <Select
                   value={selectedOutletId}
                   onValueChange={setSelectedOutletId}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 rounded-xl border-gray-200">
                     <SelectValue placeholder="All Outlets" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Outlets</SelectItem>
+                    <SelectItem value="all">All Outlets</SelectItem>
                     {outlets.map((outlet) => (
                       <SelectItem key={outlet.id} value={outlet.id}>
                         {outlet.name}
@@ -206,6 +174,44 @@ export default function ReportsPage() {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex-1 min-w-[180px]">
+                <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-gray-700"
+                />
+              </div>
+
+              <div className="flex-1 min-w-[180px]">
+                <label className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-2 block">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full h-12 px-4 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium text-gray-700"
+                />
+              </div>
+
+              {(selectedOutletId !== "all" || startDate || endDate) && (
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    setSelectedOutletId("all");
+                    setStartDate("");
+                    setEndDate("");
+                  }}
+                  className="h-12 px-4 text-gray-400 font-bold hover:text-red-500 hover:bg-red-50 transition-all"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -247,7 +253,7 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle>All Entries ({data.length})</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
+          <CardContent className="p-0" id="reports-table-container">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -344,6 +350,5 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </Container>
-    </>
   );
 }

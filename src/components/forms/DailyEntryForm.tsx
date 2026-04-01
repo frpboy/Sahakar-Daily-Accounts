@@ -33,7 +33,7 @@ import {
 
 import { dailyEntrySchema, DailyEntryInput } from "@/lib/validations/entry";
 import { submitDailyAccount } from "@/lib/actions/accounts";
-import { calculateTotalSales, formatCurrency } from "@/lib/utils";
+import { calculateTotalSales, formatCurrency, cn } from "@/lib/utils";
 
 interface DailyEntryFormProps {
   outlets: Array<{ id: string; name: string }>;
@@ -139,11 +139,11 @@ export function DailyEntryForm({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Daily Entry Form</CardTitle>
-        <CardDescription>
-          Enter your daily outlet account details
+    <Card className="border-gray-200 shadow-sm">
+      <CardHeader className="border-b pb-4 mb-4">
+        <CardTitle className="text-xl font-bold">Daily Entry Form</CardTitle>
+        <CardDescription className="text-gray-700">
+          Enter your daily outlet account details with high density accuracy.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -156,7 +156,7 @@ export function DailyEntryForm({
                 name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Date</FormLabel>
+                    <FormLabel className="text-sm font-semibold uppercase tracking-wider text-gray-700">Date</FormLabel>
                     <FormControl>
                       <Input
                         type="date"
@@ -169,6 +169,7 @@ export function DailyEntryForm({
                         onChange={(e) => {
                           field.onChange(new Date(e.target.value));
                         }}
+                        className="rounded-sm border-gray-200 focus:border-black focus:ring-black"
                       />
                     </FormControl>
                     <FormMessage />
@@ -182,13 +183,13 @@ export function DailyEntryForm({
                   name="outletId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Outlet</FormLabel>
+                      <FormLabel className="text-sm font-semibold uppercase tracking-wider text-gray-700">Outlet</FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="rounded-sm border-gray-200 focus:ring-black">
                             <SelectValue placeholder="Select outlet" />
                           </SelectTrigger>
                         </FormControl>
@@ -207,14 +208,24 @@ export function DailyEntryForm({
               )}
             </div>
 
-            {/* Total Sales Amount Section - Red Box */}
-            <div className="rounded-lg border-2 border-red-500 bg-red-50 p-6">
+            {/* Total Sales Amount Section - Enterprise Minimalist */}
+            <div className={cn(
+              "rounded-md border p-6 transition-colors duration-200",
+              isTally === false 
+                ? "border-red-500 bg-red-50/50" 
+                : isTally === true 
+                  ? "border-emerald-500 bg-emerald-50/30" 
+                  : "border-gray-200 bg-gray-50/30"
+            )}>
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-red-700">
+                <h3 className={cn(
+                  "text-lg font-bold uppercase tracking-tight",
+                  isTally === false ? "text-red-700" : isTally === true ? "text-emerald-700" : "text-gray-900"
+                )}>
                   Total Sales Amount
                 </h3>
-                <p className="text-sm text-red-600">
-                  Enter the total amount gained from sales
+                <p className="text-xs text-gray-500 uppercase font-medium">
+                  Financial Control Point
                 </p>
               </div>
               <FormField
@@ -222,66 +233,76 @@ export function DailyEntryForm({
                 name="totalSalesAmount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-red-700">
-                      Total Amount (₹)
+                    <FormLabel className="text-xs font-bold text-gray-600">
+                      Amount Calculated from Sales Report
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        step="0.01"
-                        min="0"
-                        className="border-red-300 bg-white text-lg font-semibold focus:border-red-500"
-                        {...field}
-                        value={field.value || ""}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {isTally === true && (
-                <div className="mt-3 flex items-center gap-2 text-green-600">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-medium">Amount is tally!</span>
-                </div>
-              )}
-              {isTally === false && (
-                <div className="mt-3 flex items-center gap-2 text-red-600">
-                  <AlertCircle className="h-5 w-5" />
-                  <span className="font-medium">Amount mismatch!</span>
-                </div>
-              )}
-            </div>
-
-            {/* Payment Methods Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Payment Methods</h3>
-              <p className="text-sm text-muted-foreground">
-                Enter the payment received from different methods
-              </p>
-              <div className="grid gap-4 md:grid-cols-3">
-                <FormField
-                  control={form.control}
-                  name="saleCash"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cash</FormLabel>
-                      <FormControl>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono">₹</span>
                         <Input
                           type="number"
                           inputMode="decimal"
                           placeholder="0.00"
                           step="0.01"
                           min="0"
+                          className={cn(
+                            "pl-8 rounded-sm text-2xl h-14 font-mono transition-all",
+                            isTally === false 
+                              ? "border-red-400 bg-white text-red-700 focus:border-red-600 focus:ring-red-600" 
+                              : "border-gray-200 bg-white focus:border-black focus:ring-black"
+                          )}
                           {...field}
                           value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
+                          onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
                         />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {isTally === true && (
+                <div className="mt-3 flex items-center gap-2 text-emerald-600">
+                  <CheckCircle2 className="h-5 w-5" />
+                  <span className="font-bold uppercase text-xs tracking-widest">Amount is Tally!</span>
+                </div>
+              )}
+              {isTally === false && (
+                <div className="mt-3 flex items-center gap-2 text-red-600">
+                  <AlertCircle className="h-5 w-5" />
+                  <span className="font-bold uppercase text-xs tracking-widest">Amount Mismatch!</span>
+                </div>
+              )}
+            </div>
+
+            {/* Payment Methods Section */}
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Payment Methods</h3>
+                  <p className="text-xs text-gray-500">Breakdown of collections</p>
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <FormField
+                  control={form.control}
+                  name="saleCash"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold text-gray-700">CASH</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -293,20 +314,20 @@ export function DailyEntryForm({
                   name="saleUpi"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>UPI</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">UPI / DIGITAL</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="0.00"
-                          step="0.01"
-                          min="0"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -318,20 +339,20 @@ export function DailyEntryForm({
                   name="saleCredit"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Credit</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">CREDIT / PENDING</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="0.00"
-                          step="0.01"
-                          min="0"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -339,50 +360,57 @@ export function DailyEntryForm({
                 />
               </div>
 
-              {/* Payment Total Display */}
-              <div className="rounded-lg bg-muted p-4">
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-muted-foreground">Payment Total</p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(paymentTotal)}
-                  </p>
-                </div>
-                {totalSalesAmount > 0 && (
-                  <div className="mt-2 flex justify-between items-center border-t pt-2">
-                    <p className="text-sm text-muted-foreground">Difference</p>
-                    <p
-                      className={`text-lg font-semibold ${Math.abs(paymentTotal - totalSalesAmount) < 0.01 ? "text-green-600" : "text-red-600"}`}
-                    >
-                      {formatCurrency(totalSalesAmount - paymentTotal)}
+              {/* Payment Total Display - High Contrast */}
+              <div className="rounded-sm border border-gray-200 bg-white p-4">
+                <div className="flex justify-between items-end">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Payment Total</p>
+                    <p className="text-3xl font-mono font-bold tracking-tight text-black mt-1">
+                      {formatCurrency(paymentTotal)}
                     </p>
                   </div>
-                )}
+                  {totalSalesAmount > 0 && (
+                    <div className="text-right">
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Difference</p>
+                      <p
+                        className={cn(
+                          "text-xl font-mono font-bold mt-1",
+                          Math.abs(paymentTotal - totalSalesAmount) < 0.01 
+                            ? "text-emerald-600" 
+                            : "text-red-600 bg-red-100/50 px-2 rounded-sm"
+                        )}
+                      >
+                        {formatCurrency(totalSalesAmount - paymentTotal)}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Operational Section */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold">Operations</h3>
+            <div className="space-y-4 pt-4 border-t border-gray-100">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Operations</h3>
               <div className="grid gap-4 md:grid-cols-3">
                 <FormField
                   control={form.control}
                   name="expenses"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Expenses</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">EXPENSES</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -394,20 +422,20 @@ export function DailyEntryForm({
                   name="purchase"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Purchase</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">PURCHASE</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -419,20 +447,20 @@ export function DailyEntryForm({
                   name="closingStock"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Closing Stock</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">CLOSING STOCK</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="0"
-                          step="0.01"
-                          min="0"
-                          {...field}
-                          value={field.value || ""}
-                          onChange={(e) =>
-                            field.onChange(e.target.valueAsNumber)
-                          }
-                        />
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0"
+                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          />
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -441,20 +469,27 @@ export function DailyEntryForm({
               </div>
             </div>
 
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              disabled={isLoading}
-              size="lg"
-              className="w-full"
-              variant={isTally === false ? "destructive" : "default"}
-            >
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isLoading ? "Saving..." : "Submit Entry"}
-            </Button>
+            {/* Submit Button - Positioned Bottom Right */}
+            <div className="flex justify-end pt-6 border-t border-gray-100">
+              <Button
+                type="submit"
+                disabled={isLoading}
+                size="lg"
+                className={cn(
+                  "min-w-[200px] rounded-sm font-bold uppercase tracking-widest transition-all",
+                  isTally === false 
+                    ? "bg-red-600 hover:bg-red-700 text-white" 
+                    : "bg-black hover:bg-zinc-800 text-white"
+                )}
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isLoading ? "Saving Entry..." : "Submit to HO"}
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
     </Card>
+
   );
 }

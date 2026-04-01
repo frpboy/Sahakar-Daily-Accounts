@@ -9,13 +9,14 @@ export async function GET() {
       .select({
         id: outlets.id,
         name: outlets.name,
+        code: outlets.code,
         totalSales: sql<number>`COALESCE(SUM(CAST(${dailyAccounts.saleCash} AS DECIMAL) + CAST(${dailyAccounts.saleUpi} AS DECIMAL) + CAST(${dailyAccounts.saleCredit} AS DECIMAL)), 0)`,
         totalExpenses: sql<number>`COALESCE(SUM(CAST(${dailyAccounts.expenses} AS DECIMAL)), 0)`,
         entriesCount: sql<number>`COUNT(${dailyAccounts.id})`,
       })
       .from(outlets)
       .leftJoin(dailyAccounts, eq(dailyAccounts.outletId, outlets.id))
-      .groupBy(outlets.id, outlets.name)
+      .groupBy(outlets.id, outlets.name, outlets.code)
       .orderBy(outlets.name);
 
     return NextResponse.json(outletsWithStats);

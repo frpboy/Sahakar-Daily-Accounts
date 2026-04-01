@@ -5,8 +5,15 @@ import {
   date,
   numeric,
   uuid,
+  jsonb,
+  boolean,
+  pgEnum,
+  unique,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+
+// Enums
+export const outletTypeEnum = pgEnum("outlet_type", ["SAHAKAR HYPER PHARMACY", "SAHAKAR SMART CLINIC"]);
 
 // User Roles
 export type UserRole =
@@ -18,10 +25,15 @@ export type UserRole =
 // Outlets Table
 export const outlets = pgTable("outlets", {
   id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull().unique(),
-  location: text("location"),
+  name: text("name").notNull(), // Removed .unique() to allow same name for diff types
+  code: text("code").unique(), // e.g., "SHP-001", "SSC-001"
+  location: text("location").notNull(), 
+  type: outletTypeEnum("type").default("SAHAKAR HYPER PHARMACY"),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  locationTypeUnique: unique("outlets_location_type_unique").on(table.location, table.type),
+}));
 
 // Users Table
 export const users = pgTable("users", {
@@ -95,6 +107,33 @@ export const chartOfAccounts = pgTable("chart_of_accounts", {
     .references(() => accountGroups.id),
   description: text("description"),
   isActive: text("is_active").default("true"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Audit Logs Table
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id"),
+  userName: text("user_name"),
+  outletId: uuid("outlet_id").references(() => outlets.id),
+  action: text("action").notNull(), // "CREATE", "UPDATE", "DELETE"
+  entityType: text("entity_type").notNull(), // "daily_accounts", "chart_of_accounts", etc.
+  entityId: text("entity_id"),
+  oldData: jsonb("old_data"),
+  newData: jsonb("new_data"),
+  ipAddress: text("ip_address"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Notifications Table
+export const notifications = pgTable("notifications", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: text("user_id"), // For specifically targeted notifications
+  type: text("type").notNull(), // "info", "success", "warning", "error"
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: boolean("is_read").default(false),
+  link: text("link"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
