@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GeistSans } from "geist/font";
 import { ClientLayout } from "@/components/shared/ClientLayout";
 import "@/globals.css";
 
@@ -16,7 +17,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={GeistSans.className}>
       <body className="antialiased">
         <ClientLayout>{children}</ClientLayout>
       </body>

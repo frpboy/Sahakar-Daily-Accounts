@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, location, type } = body;
     const isPharmacy = type === "Hyper Pharmacy" || type === "Pharmacy";
-    const finalType = isPharmacy ? "Hyper Pharmacy" : "Smart Clinic";
+    const finalType = isPharmacy ? "SAHAKAR HYPER PHARMACY" : "SAHAKAR SMART CLINIC";
     const prefix = isPharmacy ? "SHP" : "SSC";
 
     const nextOutlet = await db.select({ code: outlets.code })

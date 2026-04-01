@@ -23,6 +23,8 @@ import { auditLogs } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { format } from "date-fns";
 
+export const dynamic = 'force-dynamic';
+
 export default async function AuditLogsPage() {
   const logs = await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(50);
 
