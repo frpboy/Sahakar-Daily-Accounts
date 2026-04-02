@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, FileText, Users, Building2, Menu, Plus, ChevronDown } from "lucide-react";
+import {
+  BarChart3,
+  FileText,
+  Users,
+  Building2,
+  Menu,
+  Plus,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,13 +33,22 @@ export function TopNav() {
           <div className="md:hidden flex items-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-10 w-10 text-gray-900 hover:bg-gray-100 rounded-none">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 text-gray-900 hover:bg-gray-100 rounded-none"
+                >
                   <Menu className="h-6 w-6" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64 mt-2 border border-gray-200 shadow-2xl p-1 rounded-none bg-white">
+              <DropdownMenuContent
+                align="start"
+                className="w-64 mt-2 border border-gray-200 shadow-2xl p-1 rounded-none bg-white"
+              >
                 <div className="px-3 py-2">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Navigation Context</p>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                    Navigation Context
+                  </p>
                 </div>
                 <DropdownMenuSeparator className="bg-gray-50 mx-1" />
                 <Link href="/dashboard" className="w-full">
@@ -43,7 +60,7 @@ export function TopNav() {
                 <Link href="/entry" className="w-full">
                   <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
                     <Plus className="h-4 w-4" />
-                    New Entry
+                    Entries
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/reports" className="w-full">
@@ -60,14 +77,14 @@ export function TopNav() {
                 </Link>
                 <Link href="/accounts/chart-of-accounts" className="w-full">
                   <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
-                    <Building2 className="h-4 w-4" />
+                    <FileText className="h-4 w-4" />
                     Accounts
                   </DropdownMenuItem>
                 </Link>
                 <Link href="/admin/users" className="w-full">
                   <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
                     <Users className="h-4 w-4" />
-                    Users
+                    Staff
                   </DropdownMenuItem>
                 </Link>
               </DropdownMenuContent>
@@ -79,7 +96,7 @@ export function TopNav() {
             className="flex items-center gap-3 font-black text-xl text-gray-900 group tracking-tighter uppercase"
           >
             <div className="p-1 px-2 bg-gray-900 rounded-none group-hover:bg-gray-800 transition-colors">
-               <span className="text-white text-base">S</span>
+              <span className="text-white text-base">S</span>
             </div>
             DOAMS
           </Link>
@@ -90,9 +107,9 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname === "/dashboard" || pathname.startsWith("/admin") 
-                  ? "bg-gray-900 text-white hover:bg-gray-800" 
-                  : "text-gray-400 hover:text-gray-900"
+                  pathname === "/dashboard" || pathname.startsWith("/admin")
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "text-gray-400 hover:text-gray-900"
                 }`}
               >
                 Dashboard
@@ -104,12 +121,12 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname === "/entry" || pathname.startsWith("/outlet/") 
-                  ? "bg-gray-900 text-white hover:bg-gray-800" 
-                  : "text-gray-400 hover:text-gray-900"
+                  pathname === "/entry" || pathname.startsWith("/outlet/")
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "text-gray-400 hover:text-gray-900"
                 }`}
               >
-                Operation
+                Entries
               </Button>
             </Link>
 
@@ -118,12 +135,12 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname === "/reports" || pathname === "/reports/own" 
-                  ? "bg-gray-900 text-white hover:bg-gray-800" 
-                  : "text-gray-400 hover:text-gray-900"
+                  pathname === "/reports" || pathname === "/reports/own"
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "text-gray-400 hover:text-gray-900"
                 }`}
               >
-                Intelligence
+                Reports
               </Button>
             </Link>
 
@@ -132,12 +149,12 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname === "/outlets" 
-                  ? "bg-gray-900 text-white hover:bg-gray-800" 
-                  : "text-gray-400 hover:text-gray-900"
+                  pathname === "/outlets"
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "text-gray-400 hover:text-gray-900"
                 }`}
               >
-                Infrastructure
+                Outlets
               </Button>
             </Link>
 
@@ -146,12 +163,12 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname.startsWith("/accounts") 
-                  ? "bg-gray-900 text-white hover:bg-gray-800" 
-                  : "text-gray-400 hover:text-gray-900"
+                  pathname.startsWith("/accounts")
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "text-gray-400 hover:text-gray-900"
                 }`}
               >
-                Finance
+                Accounts
               </Button>
             </Link>
 
@@ -160,12 +177,12 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname === "/admin/users" 
-                  ? "bg-gray-900 text-white hover:bg-gray-800" 
-                  : "text-gray-400 hover:text-gray-900"
+                  pathname.startsWith("/admin/users")
+                    ? "bg-gray-900 text-white hover:bg-gray-800"
+                    : "text-gray-400 hover:text-gray-900"
                 }`}
               >
-                Workforce
+                Staff
               </Button>
             </Link>
           </div>
@@ -176,24 +193,38 @@ export function TopNav() {
           <div className="h-8 w-[1px] bg-gray-100 hidden md:block" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="flex items-center gap-3 p-0 hover:bg-transparent border-none rounded-none h-10 pr-2">
+              <Button
+                variant="ghost"
+                className="flex items-center gap-3 p-0 hover:bg-transparent border-none rounded-none h-10 pr-2"
+              >
                 <Avatar className="h-8 w-8 rounded-none border border-gray-100">
                   <AvatarFallback className="bg-gray-900 text-white text-[10px] font-black rounded-none">
                     AD
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left">
-                  <p className="text-[10px] font-black text-gray-900 leading-none tracking-tight uppercase">Admin Console</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">Status: Active</p>
+                  <p className="text-[10px] font-black text-gray-900 leading-none tracking-tight uppercase">
+                    Admin Console
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
+                    Status: Active
+                  </p>
                 </div>
                 <ChevronDown className="h-3 w-3 text-gray-300" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 mt-2 border border-gray-200 shadow-2xl p-1 rounded-none bg-white">
+            <DropdownMenuContent
+              align="end"
+              className="w-56 mt-2 border border-gray-200 shadow-2xl p-1 rounded-none bg-white"
+            >
               <DropdownMenuLabel className="p-3">
                 <div className="flex flex-col gap-1">
-                  <p className="font-black text-[10px] text-gray-900 uppercase tracking-widest leading-none">System Administrator</p>
-                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">Root Authority</p>
+                  <p className="font-black text-[10px] text-gray-900 uppercase tracking-widest leading-none">
+                    System Administrator
+                  </p>
+                  <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">
+                    Root Authority
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-gray-50" />
@@ -214,4 +245,3 @@ export function TopNav() {
     </nav>
   );
 }
-

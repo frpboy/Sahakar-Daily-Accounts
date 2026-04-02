@@ -48,6 +48,7 @@ export async function submitDailyAccount(rawData: unknown) {
         saleCash: validatedData.saleCash.toString(),
         saleUpi: validatedData.saleUpi.toString(),
         saleCredit: validatedData.saleCredit.toString(),
+        saleReturn: validatedData.saleReturn.toString(),
         expenses: validatedData.expenses.toString(),
         purchase: validatedData.purchase.toString(),
         closingStock: validatedData.closingStock.toString(),
@@ -59,6 +60,7 @@ export async function submitDailyAccount(rawData: unknown) {
           saleCash: validatedData.saleCash.toString(),
           saleUpi: validatedData.saleUpi.toString(),
           saleCredit: validatedData.saleCredit.toString(),
+          saleReturn: validatedData.saleReturn.toString(),
           expenses: validatedData.expenses.toString(),
           purchase: validatedData.purchase.toString(),
           closingStock: validatedData.closingStock.toString(),
@@ -70,12 +72,11 @@ export async function submitDailyAccount(rawData: unknown) {
     const outletName = outletExists[0].name;
 
     await logAction(
-      "UPDATE", 
-      "daily_accounts", 
-      targetOutletId, 
+      "UPDATE",
+      "daily_accounts",
+      targetOutletId,
       validatedData,
-      undefined,
-      targetOutletId
+      undefined
     );
 
     await sendNotification({
@@ -149,16 +150,16 @@ export async function getDailyEntriesForLastDays(days: number = 7) {
     // const { isAdmin, outletId } = await getSessionContext();
     const isAdmin = true;
     const outletId = undefined;
-    
+
     // if (!isAdmin && !outletId) {
     //   throw new Error("Manager has no assigned outlet");
     // }
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
-    
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = new Date().toISOString().split('T')[0];
+
+    const startDateStr = startDate.toISOString().split("T")[0];
+    const endDateStr = new Date().toISOString().split("T")[0];
 
     const conditions = [between(dailyAccounts.date, startDateStr, endDateStr)];
 
@@ -196,9 +197,9 @@ export async function getMonthlyAggregates(year: number, month: number) {
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
-    
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr = endDate.toISOString().split('T')[0];
+
+    const startDateStr = startDate.toISOString().split("T")[0];
+    const endDateStr = endDate.toISOString().split("T")[0];
 
     const result = await db
       .select({

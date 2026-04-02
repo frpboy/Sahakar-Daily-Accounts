@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { notifySuccess, notifyError } from "@/lib/notifications";
 import { createUser, updateUser } from "@/lib/actions/users";
 
 import {
@@ -106,16 +106,16 @@ export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
           });
 
       if (result.success) {
-        toast.success(result.message || "User saved successfully!");
+        notifySuccess(result.message || "User saved successfully!");
         if (!user) {
           form.reset();
         }
         onSuccess?.();
       } else {
-        toast.error(result.error || "Failed to save user");
+        notifyError(result.error || "Failed to save user");
       }
     } catch {
-      toast.error("An error occurred. Please try again.");
+      notifyError("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }

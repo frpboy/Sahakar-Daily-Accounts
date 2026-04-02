@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createAccountGroup, createChartOfAccount } from "@/lib/actions/coa";
-import { toast } from "sonner";
+import { notifySuccess, notifyError } from "@/lib/notifications";
 
 interface CoAActionsProps {
   categories: any[];
@@ -44,12 +44,12 @@ export function CoAActions({ categories }: CoAActionsProps) {
   const [accountGroupId, setAccountGroupId] = useState("");
   const [accountDescription, setAccountDescription] = useState("");
 
-  const allGroups = categories.flatMap(cat => cat.groups || []);
+  const allGroups = categories.flatMap((cat) => cat.groups || []);
 
   async function handleAddGroup(e: React.FormEvent) {
     e.preventDefault();
     if (!groupName || !groupCategoryId) {
-      toast.error("Please fill in all required fields");
+      notifyError("Please fill in all required fields");
       return;
     }
 
@@ -62,16 +62,16 @@ export function CoAActions({ categories }: CoAActionsProps) {
       });
 
       if (result.success) {
-        toast.success("Account group created successfully");
+        notifySuccess("Account group created successfully");
         setIsGroupDialogOpen(false);
         setGroupName("");
         setGroupCategoryId("");
         setGroupParentId(null);
       } else {
-        toast.error(result.error || "Failed to create group");
+        notifyError(result.error || "Failed to create group");
       }
-    } catch (error) {
-      toast.error("An unexpected error occurred");
+    } catch {
+      notifyError("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +80,7 @@ export function CoAActions({ categories }: CoAActionsProps) {
   async function handleAddAccount(e: React.FormEvent) {
     e.preventDefault();
     if (!accountCode || !accountName || !accountGroupId) {
-      toast.error("Please fill in all required fields");
+      notifyError("Please fill in all required fields");
       return;
     }
 
@@ -94,17 +94,17 @@ export function CoAActions({ categories }: CoAActionsProps) {
       });
 
       if (result.success) {
-        toast.success("Account created successfully");
+        notifySuccess("Account created successfully");
         setIsAccountDialogOpen(false);
         setAccountCode("");
         setAccountName("");
         setAccountGroupId("");
         setAccountDescription("");
       } else {
-        toast.error(result.error || "Failed to create account");
+        notifyError(result.error || "Failed to create account");
       }
-    } catch (error) {
-      toast.error("An unexpected error occurred");
+    } catch {
+      notifyError("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -115,7 +115,10 @@ export function CoAActions({ categories }: CoAActionsProps) {
       {/* Add Group Dialog */}
       <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" className="border-gray-200 text-gray-900 font-black text-[10px] uppercase tracking-widest px-6 h-10">
+          <Button
+            variant="outline"
+            className="border-gray-200 text-gray-900 font-black text-[10px] uppercase tracking-widest px-6 h-10"
+          >
             <Plus className="mr-2 h-3.5 w-3.5 text-gray-400" /> Create Group
           </Button>
         </DialogTrigger>
@@ -128,7 +131,12 @@ export function CoAActions({ categories }: CoAActionsProps) {
           </DialogHeader>
           <form onSubmit={handleAddGroup} className="grid gap-6 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Group Designation</Label>
+              <Label
+                htmlFor="name"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+              >
+                Group Designation
+              </Label>
               <Input
                 id="name"
                 value={groupName}
@@ -137,14 +145,26 @@ export function CoAActions({ categories }: CoAActionsProps) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="category" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Primary Classification</Label>
-              <Select value={groupCategoryId} onValueChange={setGroupCategoryId}>
+              <Label
+                htmlFor="category"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+              >
+                Primary Classification
+              </Label>
+              <Select
+                value={groupCategoryId}
+                onValueChange={setGroupCategoryId}
+              >
                 <SelectTrigger className="rounded-none border-gray-200 text-[10px] font-bold uppercase tracking-wider">
                   <SelectValue placeholder="SELECT CLASSIFICATION" />
                 </SelectTrigger>
                 <SelectContent className="rounded-none border-gray-200">
                   {categories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id} className="text-[10px] font-bold uppercase tracking-wider">
+                    <SelectItem
+                      key={cat.id}
+                      value={cat.id}
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                    >
                       {cat.name}
                     </SelectItem>
                   ))}
@@ -152,18 +172,34 @@ export function CoAActions({ categories }: CoAActionsProps) {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="parentGroup" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Parent Hierarchy (Optional)</Label>
-              <Select 
-                value={groupParentId || "none"} 
-                onValueChange={(val) => setGroupParentId(val === "none" ? null : val)}
+              <Label
+                htmlFor="parentGroup"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+              >
+                Parent Hierarchy (Optional)
+              </Label>
+              <Select
+                value={groupParentId || "none"}
+                onValueChange={(val) =>
+                  setGroupParentId(val === "none" ? null : val)
+                }
               >
                 <SelectTrigger className="rounded-none border-gray-200 text-[10px] font-bold uppercase tracking-wider">
                   <SelectValue placeholder="ROOT LEVEL (NO PARENT)" />
                 </SelectTrigger>
                 <SelectContent className="rounded-none border-gray-200">
-                  <SelectItem value="none" className="text-[10px] font-bold uppercase tracking-wider">ROOT LEVEL (NO PARENT)</SelectItem>
+                  <SelectItem
+                    value="none"
+                    className="text-[10px] font-bold uppercase tracking-wider"
+                  >
+                    ROOT LEVEL (NO PARENT)
+                  </SelectItem>
                   {allGroups.map((group: any) => (
-                    <SelectItem key={group.id} value={group.id} className="text-[10px] font-bold uppercase tracking-wider">
+                    <SelectItem
+                      key={group.id}
+                      value={group.id}
+                      className="text-[10px] font-bold uppercase tracking-wider"
+                    >
                       {group.name}
                     </SelectItem>
                   ))}
@@ -171,7 +207,11 @@ export function CoAActions({ categories }: CoAActionsProps) {
               </Select>
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={isSubmitting} className="w-full h-12 text-[10px] font-black uppercase tracking-[0.2em] shadow-none">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-12 text-[10px] font-black uppercase tracking-[0.2em] shadow-none"
+              >
                 {isSubmitting ? "PROCESSING..." : "CONFIRM & SAVE GROUP"}
               </Button>
             </DialogFooter>
@@ -196,7 +236,12 @@ export function CoAActions({ categories }: CoAActionsProps) {
           <form onSubmit={handleAddAccount} className="grid gap-6 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="code" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Entity Code</Label>
+                <Label
+                  htmlFor="code"
+                  className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+                >
+                  Entity Code
+                </Label>
                 <Input
                   id="code"
                   value={accountCode}
@@ -206,14 +251,26 @@ export function CoAActions({ categories }: CoAActionsProps) {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="group" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Target Group</Label>
-                <Select value={accountGroupId} onValueChange={setAccountGroupId}>
+                <Label
+                  htmlFor="group"
+                  className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+                >
+                  Target Group
+                </Label>
+                <Select
+                  value={accountGroupId}
+                  onValueChange={setAccountGroupId}
+                >
                   <SelectTrigger className="rounded-none border-gray-200 text-[10px] font-bold uppercase tracking-wider">
                     <SelectValue placeholder="SELECT GROUP" />
                   </SelectTrigger>
                   <SelectContent className="rounded-none border-gray-200">
                     {allGroups.map((group: any) => (
-                      <SelectItem key={group.id} value={group.id} className="text-[10px] font-bold uppercase tracking-wider">
+                      <SelectItem
+                        key={group.id}
+                        value={group.id}
+                        className="text-[10px] font-bold uppercase tracking-wider"
+                      >
                         {group.name}
                       </SelectItem>
                     ))}
@@ -222,7 +279,12 @@ export function CoAActions({ categories }: CoAActionsProps) {
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="accName" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Account Designation</Label>
+              <Label
+                htmlFor="accName"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+              >
+                Account Designation
+              </Label>
               <Input
                 id="accName"
                 value={accountName}
@@ -231,7 +293,12 @@ export function CoAActions({ categories }: CoAActionsProps) {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="desc" className="text-[10px] font-black uppercase tracking-widest text-gray-400">Internal Memo (Optional)</Label>
+              <Label
+                htmlFor="desc"
+                className="text-[10px] font-black uppercase tracking-widest text-gray-400"
+              >
+                Internal Memo (Optional)
+              </Label>
               <Input
                 id="desc"
                 value={accountDescription}
@@ -240,7 +307,11 @@ export function CoAActions({ categories }: CoAActionsProps) {
               />
             </div>
             <DialogFooter>
-              <Button type="submit" disabled={isSubmitting} className="w-full h-12 text-[10px] font-black uppercase tracking-[0.2em] shadow-none">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-12 text-[10px] font-black uppercase tracking-[0.2em] shadow-none"
+              >
                 {isSubmitting ? "PROCESSING..." : "FINALIZE LEDGER ENTRY"}
               </Button>
             </DialogFooter>

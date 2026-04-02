@@ -1,18 +1,14 @@
 import { z } from "zod";
 
 export const dailyEntrySchema = z.object({
-  date: z.coerce
-    .date()
-    .max(new Date(), { message: "Cannot enter data for future dates" }),
+  date: z.coerce.date(),
   outletId: z.string().uuid("Invalid outlet selected"),
 
-  // Total Sales Amount (entered manually)
   totalSalesAmount: z.coerce
     .number()
     .min(0, "Total sales amount cannot be negative")
     .default(0),
 
-  // Sales breakdown by payment method
   saleCash: z.coerce
     .number()
     .min(0, "Cash amount cannot be negative")
@@ -22,8 +18,11 @@ export const dailyEntrySchema = z.object({
     .number()
     .min(0, "Credit amount cannot be negative")
     .default(0),
+  saleReturn: z.coerce
+    .number()
+    .min(0, "Sales return amount cannot be negative")
+    .default(0),
 
-  // Operations
   expenses: z.coerce.number().min(0, "Expenses cannot be negative").default(0),
   purchase: z.coerce
     .number()
@@ -37,7 +36,6 @@ export const dailyEntrySchema = z.object({
 
 export type DailyEntryInput = z.infer<typeof dailyEntrySchema>;
 
-// Filter schema for the reports page
 export const reportsFilterSchema = z.object({
   startDate: z.coerce.date().optional(),
   endDate: z.coerce.date().optional(),

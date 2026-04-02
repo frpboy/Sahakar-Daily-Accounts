@@ -33,7 +33,12 @@ import {
 
 import { dailyEntrySchema, DailyEntryInput } from "@/lib/validations/entry";
 import { submitDailyAccount } from "@/lib/actions/accounts";
-import { calculateTotalSales, formatCurrency, cn } from "@/lib/utils";
+import {
+  calculateTotalSales,
+  formatCurrency,
+  cn,
+  getISTDate,
+} from "@/lib/utils";
 
 interface DailyEntryFormProps {
   outlets: Array<{ id: string; name: string }>;
@@ -53,12 +58,13 @@ export function DailyEntryForm({
   const form = useForm<DailyEntryInput>({
     resolver: zodResolver(dailyEntrySchema),
     defaultValues: {
-      date: new Date(),
+      date: getISTDate(),
       outletId: defaultOutletId || "",
       totalSalesAmount: 0,
       saleCash: 0,
       saleUpi: 0,
       saleCredit: 0,
+      saleReturn: 0,
       expenses: 0,
       purchase: 0,
       closingStock: 0,
@@ -78,16 +84,10 @@ export function DailyEntryForm({
       const tallyStatus = Math.abs(total - totalSalesAmount) < 0.01;
       setIsTally(tallyStatus);
       if (tallyStatus) {
-        toast.success("Amount is tally! All payments received.", {
-          icon: <CheckCircle2 className="h-4 w-4" />,
-        });
+        toast.success("Amount is tally! All payments received.");
       } else {
         toast.error(
-          "Amount mismatch! Payment total doesn't match the total sales.",
-          {
-            icon: <AlertCircle className="h-4 w-4" />,
-            duration: 2000,
-          }
+          "Amount mismatch! Payment total doesn't match the total sales."
         );
       }
     } else {
@@ -96,20 +96,6 @@ export function DailyEntryForm({
   }, [cash, upi, credit, totalSalesAmount]);
 
   async function onSubmit(values: DailyEntryInput) {
-    const total = calculateTotalSales(
-      values.saleCash,
-      values.saleUpi,
-      values.saleCredit
-    );
-
-    if (
-      values.totalSalesAmount > 0 &&
-      Math.abs(total - values.totalSalesAmount) >= 0.01
-    ) {
-      toast.error("Cannot submit! Payment amounts don't match total sales.");
-      return;
-    }
-
     setIsLoading(true);
     try {
       const result = await submitDailyAccount(values);
@@ -123,6 +109,7 @@ export function DailyEntryForm({
           saleCash: 0,
           saleUpi: 0,
           saleCredit: 0,
+          saleReturn: 0,
           expenses: 0,
           purchase: 0,
           closingStock: 0,
@@ -156,7 +143,9 @@ export function DailyEntryForm({
                 name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-semibold uppercase tracking-wider text-gray-700">Date</FormLabel>
+                    <FormLabel className="text-sm font-semibold uppercase tracking-wider text-gray-700">
+                      Date
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="date"
@@ -167,7 +156,10 @@ export function DailyEntryForm({
                             : ""
                         }
                         onChange={(e) => {
-                          field.onChange(new Date(e.target.value));
+                          const [y, m, d] = e.target.value
+                            .split("-")
+                            .map(Number);
+                          field.onChange(new Date(y, m - 1, d));
                         }}
                         className="rounded-sm border-gray-200 focus:border-black focus:ring-black"
                       />
@@ -183,7 +175,9 @@ export function DailyEntryForm({
                   name="outletId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-semibold uppercase tracking-wider text-gray-700">Outlet</FormLabel>
+                      <FormLabel className="text-sm font-semibold uppercase tracking-wider text-gray-700">
+                        Outlet
+                      </FormLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
@@ -209,19 +203,27 @@ export function DailyEntryForm({
             </div>
 
             {/* Total Sales Amount Section - Enterprise Minimalist */}
-            <div className={cn(
-              "rounded-md border p-6 transition-colors duration-200",
-              isTally === false 
-                ? "border-red-500 bg-red-50/50" 
-                : isTally === true 
-                  ? "border-emerald-500 bg-emerald-50/30" 
-                  : "border-gray-200 bg-gray-50/30"
-            )}>
+            <div
+              className={cn(
+                "rounded-md border p-6 transition-colors duration-200",
+                isTally === false
+                  ? "border-red-500 bg-red-50/50"
+                  : isTally === true
+                    ? "border-emerald-500 bg-emerald-50/30"
+                    : "border-gray-200 bg-gray-50/30"
+              )}
+            >
               <div className="mb-4">
-                <h3 className={cn(
-                  "text-lg font-bold uppercase tracking-tight",
-                  isTally === false ? "text-red-700" : isTally === true ? "text-emerald-700" : "text-gray-900"
-                )}>
+                <h3
+                  className={cn(
+                    "text-lg font-bold uppercase tracking-tight",
+                    isTally === false
+                      ? "text-red-700"
+                      : isTally === true
+                        ? "text-emerald-700"
+                        : "text-gray-900"
+                  )}
+                >
                   Total Sales Amount
                 </h3>
                 <p className="text-xs text-gray-500 uppercase font-medium">
@@ -238,7 +240,9 @@ export function DailyEntryForm({
                     </FormLabel>
                     <FormControl>
                       <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono">₹</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-mono">
+                          ₹
+                        </span>
                         <Input
                           type="number"
                           inputMode="decimal"
@@ -247,13 +251,15 @@ export function DailyEntryForm({
                           min="0"
                           className={cn(
                             "pl-8 rounded-sm text-2xl h-14 font-mono transition-all",
-                            isTally === false 
-                              ? "border-red-400 bg-white text-red-700 focus:border-red-600 focus:ring-red-600" 
+                            isTally === false
+                              ? "border-red-400 bg-white text-red-700 focus:border-red-600 focus:ring-red-600"
                               : "border-gray-200 bg-white focus:border-black focus:ring-black"
                           )}
                           {...field}
                           value={field.value || ""}
-                          onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                          onChange={(e) =>
+                            field.onChange(e.target.valueAsNumber || 0)
+                          }
                         />
                       </div>
                     </FormControl>
@@ -264,13 +270,17 @@ export function DailyEntryForm({
               {isTally === true && (
                 <div className="mt-3 flex items-center gap-2 text-emerald-600">
                   <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-bold uppercase text-xs tracking-widest">Amount is Tally!</span>
+                  <span className="font-bold uppercase text-xs tracking-widest">
+                    Amount is Tally!
+                  </span>
                 </div>
               )}
               {isTally === false && (
                 <div className="mt-3 flex items-center gap-2 text-red-600">
                   <AlertCircle className="h-5 w-5" />
-                  <span className="font-bold uppercase text-xs tracking-widest">Amount Mismatch!</span>
+                  <span className="font-bold uppercase text-xs tracking-widest">
+                    Amount Mismatch!
+                  </span>
                 </div>
               )}
             </div>
@@ -279,8 +289,12 @@ export function DailyEntryForm({
             <div className="space-y-4 pt-4 border-t border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Payment Methods</h3>
-                  <p className="text-xs text-gray-500">Breakdown of collections</p>
+                  <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">
+                    Payment Methods
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Breakdown of collections
+                  </p>
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-3">
@@ -289,10 +303,14 @@ export function DailyEntryForm({
                   name="saleCash"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">CASH</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">
+                        CASH
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -300,7 +318,9 @@ export function DailyEntryForm({
                             className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
                           />
                         </div>
                       </FormControl>
@@ -314,10 +334,14 @@ export function DailyEntryForm({
                   name="saleUpi"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">UPI / DIGITAL</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">
+                        UPI / DIGITAL
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -325,7 +349,9 @@ export function DailyEntryForm({
                             className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
                           />
                         </div>
                       </FormControl>
@@ -339,10 +365,14 @@ export function DailyEntryForm({
                   name="saleCredit"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">CREDIT / PENDING</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">
+                        CREDIT / PENDING
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -350,7 +380,9 @@ export function DailyEntryForm({
                             className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
                           />
                         </div>
                       </FormControl>
@@ -364,19 +396,23 @@ export function DailyEntryForm({
               <div className="rounded-sm border border-gray-200 bg-white p-4">
                 <div className="flex justify-between items-end">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Payment Total</p>
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                      Payment Total
+                    </p>
                     <p className="text-3xl font-mono font-bold tracking-tight text-black mt-1">
                       {formatCurrency(paymentTotal)}
                     </p>
                   </div>
                   {totalSalesAmount > 0 && (
                     <div className="text-right">
-                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Difference</p>
+                      <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                        Difference
+                      </p>
                       <p
                         className={cn(
                           "text-xl font-mono font-bold mt-1",
-                          Math.abs(paymentTotal - totalSalesAmount) < 0.01 
-                            ? "text-emerald-600" 
+                          Math.abs(paymentTotal - totalSalesAmount) < 0.01
+                            ? "text-emerald-600"
                             : "text-red-600 bg-red-100/50 px-2 rounded-sm"
                         )}
                       >
@@ -390,17 +426,54 @@ export function DailyEntryForm({
 
             {/* Operational Section */}
             <div className="space-y-4 pt-4 border-t border-gray-100">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">Operations</h3>
-              <div className="grid gap-4 md:grid-cols-3">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-gray-900">
+                Operations
+              </h3>
+              <div className="grid gap-4 md:grid-cols-4">
+                <FormField
+                  control={form.control}
+                  name="saleReturn"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold text-red-600">
+                        SALES RETURN
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            placeholder="0.00"
+                            className="pl-6 font-mono rounded-sm focus:border-red-400 focus:ring-red-400"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="expenses"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">EXPENSES</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">
+                        EXPENSES
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -408,7 +481,9 @@ export function DailyEntryForm({
                             className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
                           />
                         </div>
                       </FormControl>
@@ -422,10 +497,14 @@ export function DailyEntryForm({
                   name="purchase"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">PURCHASE</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">
+                        PURCHASE
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -433,7 +512,9 @@ export function DailyEntryForm({
                             className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
                           />
                         </div>
                       </FormControl>
@@ -447,10 +528,14 @@ export function DailyEntryForm({
                   name="closingStock"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">CLOSING STOCK</FormLabel>
+                      <FormLabel className="text-xs font-semibold text-gray-700">
+                        CLOSING STOCK
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">₹</span>
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                            ₹
+                          </span>
                           <Input
                             type="number"
                             inputMode="decimal"
@@ -458,7 +543,9 @@ export function DailyEntryForm({
                             className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.valueAsNumber || 0)}
+                            onChange={(e) =>
+                              field.onChange(e.target.valueAsNumber || 0)
+                            }
                           />
                         </div>
                       </FormControl>
@@ -477,8 +564,8 @@ export function DailyEntryForm({
                 size="lg"
                 className={cn(
                   "min-w-[200px] rounded-sm font-bold uppercase tracking-widest transition-all",
-                  isTally === false 
-                    ? "bg-red-600 hover:bg-red-700 text-white" 
+                  isTally === false
+                    ? "bg-red-600 hover:bg-red-700 text-white"
                     : "bg-black hover:bg-zinc-800 text-white"
                 )}
               >
@@ -490,6 +577,5 @@ export function DailyEntryForm({
         </Form>
       </CardContent>
     </Card>
-
   );
 }

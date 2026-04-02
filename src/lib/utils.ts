@@ -5,6 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function getISTDate(): Date {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60 * 1000;
+  return new Date(utcTime + istOffset);
+}
+
 export function formatCurrency(value: string | number): string {
   const numValue = typeof value === "string" ? parseFloat(value) : value;
   return new Intl.NumberFormat("en-IN", {

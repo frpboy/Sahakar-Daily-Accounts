@@ -16,6 +16,15 @@ const config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          "var(--font-geist-sans)",
+          "var(--font-inter)",
+          "system-ui",
+          "-apple-system",
+          "sans-serif",
+        ],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -49,6 +58,30 @@ const config = {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        success: {
+          DEFAULT: "hsl(var(--success))",
+          foreground: "hsl(var(--success-foreground))",
+        },
+        warning: {
+          DEFAULT: "hsl(var(--warning))",
+          foreground: "hsl(var(--warning-foreground))",
+        },
+        info: {
+          DEFAULT: "hsl(var(--info))",
+          foreground: "hsl(var(--info-foreground))",
+        },
+        color: {
+          1: "hsl(var(--color-1))",
+          2: "hsl(var(--color-2))",
+          3: "hsl(var(--color-3))",
+          4: "hsl(var(--color-4))",
+          5: "hsl(var(--color-5))",
+          6: "hsl(var(--color-6))",
+          7: "hsl(var(--color-7))",
+          8: "hsl(var(--color-8))",
+          9: "hsl(var(--color-9))",
+          10: "hsl(var(--color-10))",
         },
       },
       keyframes: {
