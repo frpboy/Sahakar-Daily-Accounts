@@ -56,8 +56,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+      <Card className="w-full max-w-md rounded-xl border border-gray-200 shadow-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Sahakar Accounts</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
