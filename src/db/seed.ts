@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import postgres from "postgres";
 import { randomSalesData } from "./seed-utils";
 import * as dotenv from "dotenv";
 
@@ -10,7 +10,7 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const sql = neon(process.env.DATABASE_URL);
+const sql = postgres(process.env.DATABASE_URL!, { prepare: false });
 
 /**
  * LOGISTICS & DATA CONSTANTS

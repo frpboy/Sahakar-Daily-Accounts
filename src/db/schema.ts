@@ -118,6 +118,18 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Registration Requests Table
+export const registrationRequests = pgTable("registration_requests", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  phone: text("phone"),
+  status: text("status").default("pending"), // pending | approved | rejected
+  reviewedBy: text("reviewed_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const outletsRelations = relations(outlets, ({ many }) => ({
   dailyAccounts: many(dailyAccounts),

@@ -2,8 +2,8 @@
 
 ## Project Overview
 
-**Project Name:** Sahakar Daily Accounts (DOAMS)
-**Tech Stack:** Next.js 16.2.2, PostgreSQL (Neon), Drizzle ORM, Tailwind CSS, shadcn/ui, Kinde Auth
+**Project Name:** Sahakar Daily Accounts (DOAMS — Daily Outlet Account Management System)
+**Tech Stack:** Next.js 16.2.2, PostgreSQL (Supabase), Drizzle ORM, Tailwind CSS, shadcn/ui, Supabase Auth
 **Date Started:** 2026-04-01
 **Last Updated:** 2026-04-02
 **Production URL:** https://doams.vercel.app
@@ -12,104 +12,154 @@
 
 ## Current Routes
 
-| Route                         | Type     | Description          |
-| ----------------------------- | -------- | -------------------- |
-| `/`                           | Redirect | → `/admin/overview`  |
-| `/login`                      | Static   | Kinde login/register |
-| `/admin/overview`             | Static   | Admin dashboard      |
-| `/admin/users`                | Static   | User management      |
-| `/dashboard`                  | Static   | Dashboard            |
-| `/entry`                      | Static   | Daily entry form     |
-| `/reports`                    | Static   | All outlets reports  |
-| `/reports/own`                | Static   | Own outlet reports   |
-| `/outlets`                    | Static   | All outlets view     |
-| `/outlets/[id]`               | Dynamic  | Single outlet detail |
-| `/accounts/chart-of-accounts` | Static   | Chart of Accounts    |
-| `/test`                       | Static   | Test page            |
+| Route                              | Type     | Description                        |
+| ---------------------------------- | -------- | ---------------------------------- |
+| `/`                                | Redirect | → `/admin/overview`                |
+| `/login`                           | Static   | Supabase login (password/magic/Google) |
+| `/register`                        | Static   | Request access form (no public signup) |
+| `/admin/overview`                  | Static   | Admin dashboard                    |
+| `/admin/users`                     | Static   | User management + pending requests |
+| `/dashboard`                       | Static   | Dashboard                          |
+| `/entry`                           | Static   | Daily entry form                   |
+| `/reports`                         | Static   | All outlets reports                |
+| `/reports/own`                     | Static   | Own outlet reports                 |
+| `/outlets`                         | Static   | All outlets view                   |
+| `/outlets/[id]`                    | Dynamic  | Single outlet detail               |
+| `/accounts/chart-of-accounts`      | Static   | Chart of Accounts                  |
+| `/test`                            | Static   | Test page                          |
 
 ## API Routes
 
-| Route                   | Method | Purpose                  |
-| ----------------------- | ------ | ------------------------ |
-| `/api/auth/[kindeAuth]` | GET    | Kinde auth endpoints     |
-| `/api/dashboard-stats`  | GET    | Dashboard statistics     |
-| `/api/outlets-stats`    | GET    | All outlets with stats   |
-| `/api/outlets-list`     | GET    | List all outlets         |
-| `/api/outlets`          | POST   | Create new outlet        |
-| `/api/all-reports`      | GET    | All reports with filters |
-| `/api/own-reports`      | GET    | Own outlet reports       |
+| Route                            | Method | Auth Required | Purpose                      |
+| -------------------------------- | ------ | ------------- | ---------------------------- |
+| `/api/auth/callback`             | GET    | No            | Supabase PKCE code exchange  |
+| `/api/registration-requests`     | POST   | No            | Submit registration request  |
+| `/api/dashboard-stats`           | GET    | Yes           | Dashboard statistics         |
+| `/api/outlets-stats`             | GET    | Yes           | All outlets with stats       |
+| `/api/outlets-list`              | GET    | Yes           | List all outlets             |
+| `/api/outlets`                   | POST   | Yes           | Create new outlet            |
+| `/api/all-reports`               | GET    | Yes           | All reports with filters     |
+| `/api/own-reports`               | GET    | Yes           | Own outlet reports           |
+| `/api/notifications`             | GET    | Yes           | User notifications           |
 
 ---
 
-## Authentication (Kinde)
+## Authentication (Supabase Auth)
 
 ### Setup
 
-- **Provider:** Kinde (https://doams.kinde.com)
-- **SDK:** `@kinde-oss/kinde-auth-nextjs`
-- **Middleware:** `src/middleware.ts` with `withAuth` helper
-- **Provider:** `src/app/AuthProvider.tsx` with `KindeProvider`
-- **Public paths:** `/login`
-- **Protected:** All routes except `/login` and static files
-- **Redirect:** After login → `/dashboard`
+- **Provider:** Supabase Auth (project: `grdeedwkzqyfxgfeskdr`)
+- **SDK:** `@supabase/supabase-js` + `@supabase/ssr`
+- **Middleware:** `middleware.ts` (root) — Vercel Routing Middleware with Node.js runtime
+- **Session refresh:** `src/lib/supabase/middleware.ts` — `updateSession()` helper
+- **Public paths:** `/login`, `/register`, `/auth/callback`
+- **Protected:** All other routes redirect to `/login` if no session
 
-### Auth Components
+### Login Methods
 
-- `LoginLink`, `RegisterLink` - Sign in/up buttons
-- `LogoutLink` - Sign out button
-- `useKindeBrowserClient()` - Client-side auth data
-- `getKindeServerSession()` - Server-side auth data
+- **Email + Password** — standard sign in
+- **Magic Link** — passwordless OTP sent to email
+- **Google OAuth** — configure in Supabase Dashboard → Auth → Providers → Google
 
-### User Data Available
+### Registration Flow (No Public Signup)
 
-- `id`, `email`, `given_name`, `family_name`, `picture`, `username`, `phone_number`
+1. User visits `/register` → submits name, email, phone
+2. Record inserted into `registration_requests` table (status: `pending`)
+3. Admin or HO Accountant reviews at `/admin/users` → Pending Requests tab
+4. On approval: `supabase.auth.admin.inviteUserByEmail()` sends invite email
+5. User row created in `users` table with Supabase UUID as ID
+6. User clicks invite link → sets password → can log in
+
+### Auth Client Utilities
+
+| File | Purpose |
+|------|---------|
+| `src/lib/supabase/client.ts` | `createBrowserClient` for client components |
+| `src/lib/supabase/server.ts` | `createServerClient` (async) for server actions/routes |
+| `src/lib/supabase/middleware.ts` | `updateSession()` session cookie refresh |
+
+### Server Action Pattern
+
+```typescript
+import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+
+const supabase = await createClient();
+const { data: { user } } = await supabase.auth.getUser();
+if (!user) return { error: "Unauthorized" };
+
+const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+// dbUser.role, dbUser.outletId
+```
+
+### Admin User Setup (First-Time)
+
+1. Go to Supabase Dashboard → Authentication → Users → "Create new user"
+2. Email: `frpboy12@gmail.com`, set a password, tick "Auto Confirm"
+3. Copy the generated UUID
+4. Run in Supabase SQL Editor:
+   ```sql
+   UPDATE users SET id = '<UUID>' WHERE email = 'frpboy12@gmail.com';
+   ```
 
 ---
 
-## Database Schema
+## Database (Supabase PostgreSQL)
 
-### Tables
+### Connection
 
-- **outlets** - 14 outlets (7 locations × 2 businesses)
-- **users** - User accounts with roles
-- **daily_accounts** - Daily financial entries (includes `sale_return` column)
-- **account_categories** - Asset, Liability, Equity, Revenue, Expense
-- **account_groups** - Sub-groups under categories
-- **chart_of_accounts** - Individual accounts with codes
-- **audit_logs** - Audit trail
-- **notifications** - User notifications
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | Transaction Pooler (port 6543) — used by app at runtime |
+| `DIRECT_URL` | Direct connection (port 5432) — used by drizzle-kit migrations only |
 
-### User Roles
+**Host (Pooler):** `aws-1-ap-southeast-2.pooler.supabase.com:6543`
+**Host (Direct):** `db.grdeedwkzqyfxgfeskdr.supabase.co:5432`
 
-1. **admin** - Full access
-2. **ho_accountant** - Head Office - all branches
-3. **outlet_manager** - Single outlet management
-4. **outlet_accountant** - Single outlet accounting
+### Schema — Tables (9 total)
 
-### Outlets (14 total)
+| Table | Description |
+|-------|-------------|
+| `outlets` | 14 retail outlets (7 locations × 2 business types) |
+| `users` | User accounts — `id` is Supabase Auth UUID (text) |
+| `daily_accounts` | Core financial entries (NUMERIC(12,2) for all monetary fields) |
+| `account_categories` | COA Level 1: Asset, Liability, Equity, Revenue, Expense |
+| `account_groups` | COA Level 2: sub-groups with self-referential hierarchy |
+| `chart_of_accounts` | COA Level 3: individual accounts with codes |
+| `audit_logs` | Action audit trail (JSONB old/new data) |
+| `notifications` | User notifications |
+| `registration_requests` | Pending user access requests (status: pending/approved/rejected) |
 
-```
-SAHAKAR HYPER PHARMACY - MANJERI
-SAHAKAR SMART CLINIC - MANJERI
-SAHAKAR HYPER PHARMACY - ALANALLUR
-SAHAKAR SMART CLINIC - ALANALLUR
-SAHAKAR HYPER PHARMACY - KARINKALLATHANI
-SAHAKAR SMART CLINIC - KARINKALLATHANI
-SAHAKAR HYPER PHARMACY - MELATTUR
-SAHAKAR SMART CLINIC - MELATTUR
-SAHAKAR HYPER PHARMACY - TIRUR
-SAHAKAR SMART CLINIC - TIRUR
-SAHAKAR HYPER PHARMACY - MAKKARAPARAMBU
-SAHAKAR SMART CLINIC - MAKKARAPARAMBU
-SAHAKAR HYPER PHARMACY - TIRURANAGADI
-SAHAKAR SMART CLINIC - TIRURANAGADI
-```
+### Key Constraints
 
-### Admin User
+- `daily_accounts(outlet_id, date)` UNIQUE — one entry per outlet per day
+- All monetary fields: `NUMERIC(12, 2)` — no floating-point errors
+- `outlets → daily_accounts` CASCADE DELETE
+- `users.id` = Supabase Auth UUID (text, not uuid type)
 
-- **Name:** Rahul
-- **Email:** frpboy12@gmail.com
-- **Role:** admin
+### Seed Data
+
+- 14 outlets provisioned
+- 420 daily entries (14 outlets × 30 days)
+- Admin user: `frpboy12@gmail.com` (role: admin)
+- 5 account categories, 5 groups, 7 chart of accounts entries
+
+---
+
+## User Roles (RBAC)
+
+Roles are stored in the `users` DB table. Supabase Auth handles identity only.
+
+| Role | Scope | Permissions |
+|------|-------|-------------|
+| `admin` | All outlets | Full CRUD, user management, all reports, accounts |
+| `ho_accountant` | All outlets | Create/edit all entries, all reports, export |
+| `outlet_manager` | Assigned outlet only | Create/edit own entries, own reports |
+| `outlet_accountant` | Assigned outlet only | Create/edit own entries, own reports |
+
+Permission matrix: `src/lib/permissions.ts`
 
 ---
 
@@ -121,11 +171,12 @@ SAHAKAR SMART CLINIC - TIRURANAGADI
 - Total Sales Amount input (red box with dynamic border color)
 - Payment methods: Cash, UPI, Credit (3-column grid)
 - Sales Return field (in Operations section, 4-column grid)
-- Tally validation - checks if payment methods = total sales
+- Tally validation — checks if payment methods = total sales
 - Toast notifications (Sonner) for match/mismatch
 - Operations: Sales Return, Expenses, Purchase, Closing Stock
 - IST timezone enforcement for dates
 - INR currency formatting (₹)
+- Server enforces outlet from session (prevents ID swapping for managers)
 
 ### 2. User Management
 
@@ -134,42 +185,51 @@ SAHAKAR SMART CLINIC - TIRURANAGADI
 - Branch/Outlet assignment (required for outlet-level roles)
 - Active/Inactive toggle
 - Email uniqueness validation
+- **Pending Requests** tab: Admin/HO Accountant can approve or reject registration requests
 
-### 3. RBAC Permissions
+### 3. Registration Request Flow
+
+- `/register` page (public — no auth required)
+- Submits name, email, phone to `registration_requests` table
+- Admin approves → Supabase invite email sent → user sets password
+- `SUPABASE_SERVICE_ROLE_KEY` used server-side only for `admin.inviteUserByEmail()`
+
+### 4. RBAC Permissions
 
 | Feature           | Admin | HO Acc | Outlet Mgr | Outlet Acc |
 | ----------------- | :---: | :----: | :--------: | :--------: |
 | User Management   |  ✅   |   ✅   |     ❌     |     ❌     |
+| Approve Requests  |  ✅   |   ✅   |     ❌     |     ❌     |
 | Chart of Accounts |  ✅   |   ✅   |     ✅     |     ✅     |
 | All Reports       |  ✅   |   ✅   |     ❌     |     ❌     |
 | Own Reports       |  ✅   |   ✅   |     ✅     |     ✅     |
 | All Outlets       |  ✅   |   ✅   |     ❌     |     ❌     |
 | New Entry         |  ✅   |   ✅   |     ✅     |     ✅     |
 
-### 4. Reports
+### 5. Reports
 
 - All Reports: Filter by outlet, export CSV
 - Own Reports: View own outlet data, export CSV
 - Summary cards: Total Sales, Expenses, Net Profit
 - Date range filtering
 
-### 5. Outlets View
+### 6. Outlets View
 
 - Card grid of all outlets
 - Stats per outlet: Sales, Expenses, Entries, Net Profit
 - Create new outlet dialog
 - Outlet detail pages
 
-### 6. Navigation
+### 7. Navigation
 
 - Geist Design System inspired navbar
 - Section labels: Dashboard, Entries, Reports, Outlets, Accounts, Staff
 - Active state highlighting with `pathname.startsWith()`
-- User dropdown with avatar and Kinde user info
+- User dropdown with Supabase user info (name/email from auth session)
+- Sign out via `supabase.auth.signOut()` → redirect `/login`
 - Mobile responsive hamburger menu
-- LogoutLink integration
 
-### 7. UI/UX
+### 8. UI/UX
 
 - Inter font family
 - Geist Design System color palette (10-step gray scale)
@@ -181,16 +241,15 @@ SAHAKAR SMART CLINIC - TIRURANAGADI
 
 ## Components
 
-| Component         | Path                                      | Purpose                   |
-| ----------------- | ----------------------------------------- | ------------------------- |
-| TopNav            | `components/shared/TopNav.tsx`            | Navigation with user menu |
-| ClientLayout      | `components/shared/ClientLayout.tsx`      | Root layout wrapper       |
-| AuthProvider      | `app/AuthProvider.tsx`                    | Kinde provider wrapper    |
-| DailyEntryForm    | `components/forms/DailyEntryForm.tsx`     | Entry form with tally     |
-| UserForm          | `components/forms/UserForm.tsx`           | User CRUD form            |
-| AccountsDataTable | `components/tables/AccountsDataTable.tsx` | Reports table             |
+| Component         | Path                                      | Purpose                        |
+| ----------------- | ----------------------------------------- | ------------------------------ |
+| TopNav            | `components/shared/TopNav.tsx`            | Navigation with Supabase user  |
+| ClientLayout      | `components/shared/ClientLayout.tsx`      | Root layout wrapper            |
+| DailyEntryForm    | `components/forms/DailyEntryForm.tsx`     | Entry form with tally          |
+| UserForm          | `components/forms/UserForm.tsx`           | User CRUD form                 |
+| AccountsDataTable | `components/tables/AccountsDataTable.tsx` | Reports table                  |
 
-### UI Components
+### UI Components (shadcn/ui)
 
 button, input, select, card, form, label, table, container, badge, switch, avatar, dropdown-menu, dialog
 
@@ -198,28 +257,57 @@ button, input, select, card, form, label, table, container, badge, switch, avata
 
 ## Key Files
 
-| File                           | Purpose                     |
-| ------------------------------ | --------------------------- |
-| `src/db/schema.ts`             | Database schema definitions |
-| `src/db/seed.ts`               | Database seeding script     |
-| `src/middleware.ts`            | Kinde auth middleware       |
-| `src/app/AuthProvider.tsx`     | KindeProvider wrapper       |
-| `src/lib/permissions.ts`       | RBAC permission system      |
-| `src/lib/actions/accounts.ts`  | Account server actions      |
-| `src/lib/actions/users.ts`     | User CRUD actions           |
-| `src/lib/validations/entry.ts` | Form validation schemas     |
-| `src/lib/utils.ts`             | Utility functions           |
+| File                                    | Purpose                              |
+| --------------------------------------- | ------------------------------------ |
+| `middleware.ts`                         | Supabase session refresh (root)      |
+| `src/lib/supabase/client.ts`            | Browser Supabase client              |
+| `src/lib/supabase/server.ts`            | Server Supabase client (async)       |
+| `src/lib/supabase/middleware.ts`        | updateSession() helper               |
+| `src/db/schema.ts`                      | Drizzle schema (9 tables)            |
+| `src/db/index.ts`                       | postgres.js + Drizzle client         |
+| `src/db/seed.ts`                        | Database seeding script              |
+| `drizzle.config.ts`                     | Drizzle config (uses DIRECT_URL)     |
+| `src/lib/permissions.ts`               | RBAC permission matrix               |
+| `src/lib/actions/accounts.ts`          | Daily account server actions         |
+| `src/lib/actions/users.ts`             | User CRUD actions                    |
+| `src/lib/actions/registrations.ts`     | Registration request actions         |
+| `src/lib/actions/coa.ts`               | Chart of Accounts actions            |
+| `src/lib/validations/entry.ts`         | Zod validation schemas               |
+| `src/app/login/page.tsx`               | Login page (password/magic/Google)   |
+| `src/app/register/page.tsx`            | Registration request page            |
+| `src/app/api/auth/callback/route.ts`   | Supabase PKCE callback handler       |
+| `src/app/api/registration-requests/route.ts` | Public registration endpoint   |
+
+---
+
+## Environment Variables
+
+```env
+# Supabase Database — Transaction Pooler (runtime)
+DATABASE_URL=postgresql://postgres.grdeedwkzqyfxgfeskdr:[PASSWORD]@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres
+
+# Supabase Database — Direct connection (drizzle-kit migrations only)
+DIRECT_URL=postgresql://postgres:[PASSWORD]@db.grdeedwkzqyfxgfeskdr.supabase.co:5432/postgres
+
+# Supabase Auth
+NEXT_PUBLIC_SUPABASE_URL=https://grdeedwkzqyfxgfeskdr.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...  (public — safe for client)
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGci...       (secret — server only, never expose)
+```
 
 ---
 
 ## Commands
 
 ```bash
-npm run build                          # Build
-npm run dev                            # Development
-npm run lint                           # ESLint
-powershell -ExecutionPolicy Bypass -File run-seed.ps1  # Database Seed
-vercel --prod                          # Deploy to production
+npm run dev          # Start development server (Turbopack)
+npm run build        # Production build
+npm run lint         # ESLint
+npm run db:push      # Push Drizzle schema to Supabase (uses DIRECT_URL)
+npm run db:generate  # Generate migration files
+npm run db:studio    # Open Drizzle Studio
+npm run db:seed      # Seed database (14 outlets, 420 entries)
+npm run format       # Prettier format
 ```
 
 ---
@@ -229,44 +317,69 @@ vercel --prod                          # Deploy to production
 - **Platform:** Vercel
 - **Production URL:** https://doams.vercel.app
 - **Build Status:** ✅ Successful
-- **TypeScript:** ✅ No errors
+- **TypeScript:** ✅ Zero errors
+
+### Vercel Environment Variables to Set
+
+| Variable | Value |
+|----------|-------|
+| `DATABASE_URL` | Transaction Pooler URL (port 6543) |
+| `DIRECT_URL` | Direct connection URL (port 5432) |
+| `NEXT_PUBLIC_SUPABASE_URL` | `https://grdeedwkzqyfxgfeskdr.supabase.co` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon public key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role secret key |
 
 ---
 
-## Environment Variables
+## Migration History
 
-```env
-# Database
-DATABASE_URL=postgresql://...
+### 2026-04-02 — Neon → Supabase + Kinde → Supabase Auth
 
-# Kinde Auth
-KINDE_CLIENT_ID=f45549431a8f46deadfb224f824b8039
-KINDE_CLIENT_SECRET=...
-KINDE_ISSUER_URL=https://doams.kinde.com
-KINDE_SITE_URL=http://localhost:3000
-KINDE_POST_LOGOUT_REDIRECT_URL=http://localhost:3000
-KINDE_POST_LOGIN_REDIRECT_URL=http://localhost:3000/dashboard
-```
+**Database migration:**
+- Removed `@neondatabase/serverless`, installed `postgres@3.4.8`
+- `src/db/index.ts`: switched to `drizzle-orm/postgres-js` with `prepare: false` (required for PgBouncer transaction mode)
+- `drizzle.config.ts`: now uses `DIRECT_URL` for schema push/generate (bypasses PgBouncer)
+- `package.json`: updated `db:push` and `db:generate` scripts to remove deprecated `:pg` suffix
+- All 9 tables pushed to Supabase, 420 seed entries created
+
+**Auth migration:**
+- Removed `@kinde-oss/kinde-auth-nextjs`
+- Installed `@supabase/supabase-js@2.101.1` + `@supabase/ssr@0.10.0`
+- Created `src/lib/supabase/` with `client.ts`, `server.ts`, `middleware.ts`
+- `middleware.ts` (root): Vercel Routing Middleware with `export default`, Node.js runtime — handles session refresh + redirect to `/login`
+- `/login` page: replaced Kinde buttons with email+password form, magic link toggle, Google OAuth button
+- `/register` page: new public registration request form
+- `/api/auth/callback`: Supabase PKCE code exchange (replaces `/api/auth/[kindeAuth]`)
+- Added `registration_requests` table to schema
+- `src/lib/actions/registrations.ts`: submit, approve (with invite email), reject actions
+- `src/app/api/registration-requests/route.ts`: public POST endpoint for `/register` page
+- `src/lib/actions/accounts.ts`: replaced hardcoded user stub with real Supabase session
+- `src/components/shared/TopNav.tsx`: Supabase user info + `signOut()`
+- `src/app/layout.tsx`: removed KindeProvider/AuthProvider wrapper
+- Deleted: `src/app/AuthProvider.tsx`, `src/app/api/auth/[kindeAuth]/route.ts`
 
 ---
 
-## Required SQL (Run in Neon Console)
+## Pending / Next Steps
 
-```sql
--- Add sale_return column
-ALTER TABLE daily_accounts ADD COLUMN IF NOT EXISTS sale_return NUMERIC(12, 2) DEFAULT '0';
-```
+- [ ] **Admin first login:** Create `frpboy12@gmail.com` in Supabase Auth → update `users.id` to Supabase UUID
+- [ ] **Google OAuth:** Enable in Supabase Dashboard → Auth → Providers → Google (needs Google Cloud credentials)
+- [ ] **Vercel env vars:** Add all 5 Supabase environment variables in Vercel Dashboard
+- [ ] **Admin Users page:** Add Pending Requests UI tab for approving registration requests
+- [ ] **Chart of Accounts UI:** Complete CRUD pages (schema done, UI partial)
+- [ ] **Advanced analytics:** Trend charts, month-over-month comparisons
+- [ ] **Email notifications:** Alert admin when daily entry is missed
+- [ ] **PWA:** Enhance manifest.json for offline-first capability
 
 ---
 
 ## Notes
 
-- Auth is **enabled** with Kinde
-- All routes protected except `/login`
-- Seed data includes 30 days of dummy data for all 14 outlets
-- Total seeded entries: 420 (30 days × 14 outlets)
-- Neon PostgreSQL database connected via environment variables
-- All dates/times use IST (UTC+5:30)
-- All currency uses INR (₹) format
-- Sonner toast notifications used for form feedback
-- No italics enforced globally via CSS
+- All routes protected except `/login`, `/register`, `/auth/callback`
+- Seed data: 30 days of dummy financial data for all 14 outlets (420 entries)
+- All monetary values: `NUMERIC(12,2)` — no floating-point errors
+- All dates/times: IST (UTC+5:30)
+- All currency: INR (₹) format
+- Server actions enforce outlet from session — managers cannot submit for other outlets
+- `SUPABASE_SERVICE_ROLE_KEY` is used ONLY in server actions, never exposed to client
+- `src/proxy.ts` exists as empty stub (Next.js 16 file convention stub — session auth handled by `middleware.ts`)

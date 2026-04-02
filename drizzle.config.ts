@@ -7,7 +7,7 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL!,
+    url: process.env.DIRECT_URL!, // Direct connection required for migrations (bypasses PgBouncer)
   },
   verbose: true,
   strict: true,

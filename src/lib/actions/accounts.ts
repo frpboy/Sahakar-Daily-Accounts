@@ -1,17 +1,29 @@
 "use server";
 
 import { db } from "@/db";
-import { dailyAccounts, outlets } from "@/db/schema";
+import { dailyAccounts, outlets, users } from "@/db/schema";
 import { dailyEntrySchema } from "@/lib/validations/entry";
 import { revalidatePath } from "next/cache";
 import { eq, and, between, sql } from "drizzle-orm";
+import { createClient } from "@/lib/supabase/server";
 
 export async function submitDailyAccount(rawData: unknown) {
   try {
-    // 1. Validation Proxy (Bypassing session context)
-    const userId = "admin-user";
-    const outletId = undefined;
-    const isAdmin = true;
+    // 1. Auth: get Supabase user and look up role/outlet from DB
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, authUser.id))
+      .limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const userId = dbUser.id;
+    const outletId = dbUser.outletId ?? undefined;
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
 
     // 2. Validate Data with Zod
     const validatedData = dailyEntrySchema.parse(rawData);
@@ -91,9 +103,15 @@ export async function getDailyEntries(
   filterOutletId?: string
 ) {
   try {
-    // const { isAdmin, outletId } = await getSessionContext();
-    const isAdmin = true;
-    const outletId = undefined;
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
+    const outletId = dbUser.outletId ?? undefined;
 
     const query = db
       .select()
@@ -127,13 +145,15 @@ export async function getDailyEntries(
 
 export async function getDailyEntriesForLastDays(days: number = 7) {
   try {
-    // const { isAdmin, outletId } = await getSessionContext();
-    const isAdmin = true;
-    const outletId = undefined;
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
 
-    // if (!isAdmin && !outletId) {
-    //   throw new Error("Manager has no assigned outlet");
-    // }
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
+    const outletId = dbUser.outletId ?? undefined;
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
