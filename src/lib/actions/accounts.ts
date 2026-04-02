@@ -5,8 +5,6 @@ import { dailyAccounts, outlets } from "@/db/schema";
 import { dailyEntrySchema } from "@/lib/validations/entry";
 import { revalidatePath } from "next/cache";
 import { eq, and, between, sql } from "drizzle-orm";
-import { logAction } from "./audit";
-import { sendNotification } from "./notifications";
 
 export async function submitDailyAccount(rawData: unknown) {
   try {
@@ -68,25 +66,7 @@ export async function submitDailyAccount(rawData: unknown) {
         },
       });
 
-    // 7. Success! Audit and Notify
-    const outletName = outletExists[0].name;
-
-    await logAction(
-      "UPDATE",
-      "daily_accounts",
-      targetOutletId,
-      validatedData,
-      undefined
-    );
-
-    await sendNotification({
-      type: "success",
-      title: "Daily Account Submitted",
-      message: `${outletName} has submitted their accounts for ${dateStr}.`,
-      link: `/reports?outlet=${targetOutletId}&date=${dateStr}`,
-    });
-
-    // 8. Clear Cache so the UI updates
+    // 7. Clear Cache so the UI updates
     revalidatePath("/entry");
     revalidatePath("/reports");
     revalidatePath("/dashboard");

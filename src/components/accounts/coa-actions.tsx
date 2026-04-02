@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createAccountGroup, createChartOfAccount } from "@/lib/actions/coa";
-import { notifySuccess, notifyError } from "@/lib/notifications";
+import { toast } from "sonner";
 
 interface CoAActionsProps {
   categories: any[];
@@ -49,7 +49,7 @@ export function CoAActions({ categories }: CoAActionsProps) {
   async function handleAddGroup(e: React.FormEvent) {
     e.preventDefault();
     if (!groupName || !groupCategoryId) {
-      notifyError("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -62,16 +62,16 @@ export function CoAActions({ categories }: CoAActionsProps) {
       });
 
       if (result.success) {
-        notifySuccess("Account group created successfully");
+        toast.success("Account group created successfully");
         setIsGroupDialogOpen(false);
         setGroupName("");
         setGroupCategoryId("");
         setGroupParentId(null);
       } else {
-        notifyError(result.error || "Failed to create group");
+        toast.error(result.error || "Failed to create group");
       }
     } catch {
-      notifyError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +80,7 @@ export function CoAActions({ categories }: CoAActionsProps) {
   async function handleAddAccount(e: React.FormEvent) {
     e.preventDefault();
     if (!accountCode || !accountName || !accountGroupId) {
-      notifyError("Please fill in all required fields");
+      toast.error("Please fill in all required fields");
       return;
     }
 
@@ -94,17 +94,17 @@ export function CoAActions({ categories }: CoAActionsProps) {
       });
 
       if (result.success) {
-        notifySuccess("Account created successfully");
+        toast.success("Account created successfully");
         setIsAccountDialogOpen(false);
         setAccountCode("");
         setAccountName("");
         setAccountGroupId("");
         setAccountDescription("");
       } else {
-        notifyError(result.error || "Failed to create account");
+        toast.error(result.error || "Failed to create account");
       }
     } catch {
-      notifyError("An unexpected error occurred");
+      toast.error("An unexpected error occurred");
     } finally {
       setIsSubmitting(false);
     }

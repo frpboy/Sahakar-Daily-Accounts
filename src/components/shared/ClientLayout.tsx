@@ -1,20 +1,19 @@
 "use client";
 
 import { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Toaster } from "sonner";
-import { AuthProvider } from "@/lib/auth-context";
 import { TopNav } from "./TopNav";
-import { MobileNav } from "./MobileNav";
 
 export function ClientLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isLoginPage = pathname === "/login";
+
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gray-50/50 flex flex-col">
-        <TopNav />
-        <main className="flex-1 pb-20 md:pb-0">{children}</main>
-        <MobileNav />
-      </div>
+    <div className="min-h-screen bg-gray-50/50 flex flex-col">
+      {!isLoginPage && <TopNav />}
+      <main className="flex-1">{children}</main>
       <Toaster position="top-center" richColors closeButton />
-    </AuthProvider>
+    </div>
   );
 }

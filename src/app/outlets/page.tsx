@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { notifySuccess, notifyError } from "@/lib/notifications";
+import { toast } from "sonner";
 
 interface OutletStats {
   id: string;
@@ -66,7 +66,7 @@ export default function OutletsPage() {
   async function handleCreateOutlet(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) {
-      notifyError("Please enter a name");
+      toast.error("Please enter a name");
       return;
     }
 
@@ -83,17 +83,17 @@ export default function OutletsPage() {
       });
 
       if (response.ok) {
-        notifySuccess(`${newType} outlet created successfully!`);
+        toast.success(`${newType} outlet created successfully!`);
         setNewName("");
         setNewLocation("");
         setIsDialogOpen(false);
         fetchOutlets();
       } else {
         const err = await response.json();
-        notifyError(err.error || "Failed to create outlet");
+        toast.error(err.error || "Failed to create outlet");
       }
     } catch {
-      notifyError("An error occurred");
+      toast.error("An error occurred");
     } finally {
       setIsCreating(false);
     }

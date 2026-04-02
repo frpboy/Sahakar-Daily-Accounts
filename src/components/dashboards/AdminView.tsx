@@ -14,21 +14,12 @@ import {
   Activity,
   FileText,
   Printer,
-  Plus,
-  ChevronDown,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { exportToCSV, exportToPDF } from "@/lib/export";
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { subDays } from "date-fns";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { OutletCreationModal } from "@/components/shared/OutletCreationModal";
 
 interface DashboardStats {
   totalOutlets: number;
@@ -56,13 +47,6 @@ export default function AdminView() {
   const [dateRange, setDateRange] = useState({
     from: subDays(new Date(), 29),
     to: new Date(),
-  });
-  const [creationModal, setCreationModal] = useState<{
-    type: "Hyper Pharmacy" | "Smart Clinic";
-    isOpen: boolean;
-  }>({
-    type: "Hyper Pharmacy",
-    isOpen: false,
   });
 
   useEffect(() => {
@@ -128,39 +112,6 @@ export default function AdminView() {
             onRangeChange={(from, to) => setDateRange({ from, to })}
           />
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="h-10 px-6 font-black text-[10px] uppercase tracking-widest shadow-none">
-                <Plus className="mr-2 h-3 w-3" /> Create Outlet{" "}
-                <ChevronDown className="ml-2 h-3 w-3 opacity-50" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem
-                onClick={() =>
-                  setCreationModal({ type: "Hyper Pharmacy", isOpen: true })
-                }
-                className="flex items-center gap-3 p-3 font-bold text-[10px] uppercase tracking-wider"
-              >
-                <div className="h-6 w-6 bg-gray-900 text-white rounded-none flex items-center justify-center">
-                  <Building2 className="h-3 w-3" />
-                </div>
-                Hyper Pharmacy
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  setCreationModal({ type: "Smart Clinic", isOpen: true })
-                }
-                className="flex items-center gap-3 p-3 font-bold text-[10px] uppercase tracking-wider"
-              >
-                <div className="h-6 w-6 bg-gray-900 text-white rounded-none flex items-center justify-center">
-                  <Activity className="h-3 w-3" />
-                </div>
-                Smart Clinic
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
           <Link href="/admin/users" className="hidden lg:block">
             <Button
               variant="outline"
@@ -179,13 +130,6 @@ export default function AdminView() {
           </Link>
         </div>
       </div>
-
-      <OutletCreationModal
-        type={creationModal.type}
-        isOpen={creationModal.isOpen}
-        onClose={() => setCreationModal((prev) => ({ ...prev, isOpen: false }))}
-        onSuccess={fetchDashboardData}
-      />
 
       {/* Main KPIs */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useKindeBrowserClient } from "@kinde-oss/kinde-auth-nextjs";
 import {
   BarChart3,
   FileText,
@@ -10,6 +11,7 @@ import {
   Menu,
   Plus,
   ChevronDown,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,10 +23,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { NotificationsDropdown } from "./NotificationsDropdown";
+import { LogoutLink } from "@kinde-oss/kinde-auth-nextjs/components";
 
 export function TopNav() {
   const pathname = usePathname();
+  const { user } = useKindeBrowserClient();
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
     <nav className="border-b bg-white sticky top-0 z-40 shadow-none">
@@ -189,7 +202,6 @@ export function TopNav() {
         </div>
 
         <div className="flex items-center gap-4">
-          <NotificationsDropdown />
           <div className="h-8 w-[1px] bg-gray-100 hidden md:block" />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -199,15 +211,15 @@ export function TopNav() {
               >
                 <Avatar className="h-8 w-8 rounded-none border border-gray-100">
                   <AvatarFallback className="bg-gray-900 text-white text-[10px] font-black rounded-none">
-                    AD
+                    {getInitials(user?.given_name || user?.email)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left">
                   <p className="text-[10px] font-black text-gray-900 leading-none tracking-tight uppercase">
-                    Admin Console
+                    {user?.given_name || "User"}
                   </p>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
-                    Status: Active
+                    {user?.email || ""}
                   </p>
                 </div>
                 <ChevronDown className="h-3 w-3 text-gray-300" />
@@ -220,24 +232,25 @@ export function TopNav() {
               <DropdownMenuLabel className="p-3">
                 <div className="flex flex-col gap-1">
                   <p className="font-black text-[10px] text-gray-900 uppercase tracking-widest leading-none">
-                    System Administrator
+                    {user?.given_name || "User"}
                   </p>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">
-                    Root Authority
+                    {user?.email || ""}
                   </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-gray-50" />
-              <Link href="/profile">
-                <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors focus:bg-gray-900 focus:text-white p-3 rounded-none m-0.5">
-                  <Users className="h-4 w-4 mr-3" />
-                  Terminal Profile
-                </DropdownMenuItem>
-              </Link>
-              <DropdownMenuSeparator className="bg-gray-50" />
-              <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest cursor-pointer text-red-500 transition-colors focus:bg-red-500 focus:text-white p-3 rounded-none m-0.5">
-                System Logout
+              <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors focus:bg-gray-900 focus:text-white p-3 rounded-none m-0.5">
+                <Users className="h-4 w-4 mr-3" />
+                Terminal Profile
               </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-gray-50" />
+              <LogoutLink>
+                <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest cursor-pointer text-red-500 transition-colors focus:bg-red-500 focus:text-white p-3 rounded-none m-0.5">
+                  <LogOut className="h-4 w-4 mr-3" />
+                  Sign Out
+                </DropdownMenuItem>
+              </LogoutLink>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

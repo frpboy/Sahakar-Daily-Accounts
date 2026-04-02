@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.4",
+    "@kinde-oss/kinde-auth-nextjs": "^2.11.0",
     "@neondatabase/serverless": "^0.10.4",
     "@radix-ui/primitive": "*",
     "@radix-ui/react-dialog": "^1.1.15",
