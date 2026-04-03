@@ -8,10 +8,8 @@ export function exportToCSV(data: any[], filename: string) {
   const headers = Object.keys(data[0]);
   const csvRows = [];
 
-  // Add headers
   csvRows.push(headers.join(","));
 
-  // Add data rows
   for (const row of data) {
     const values = headers.map((header) => {
       const value = row[header];
@@ -34,35 +32,29 @@ export function exportToCSV(data: any[], filename: string) {
   document.body.removeChild(link);
 }
 
-export function exportToPDF(elementId: string, filename: string) {
-  // Simple PDF export using browser's print functionality focused on a specific element
-  // For a real PDF, we would use jspdf, but this is a solid fallback for "Clean Reports"
-  const printContent = document.getElementById(elementId);
-  if (!printContent) return;
+export async function exportToPDF(elementId: string, filename: string) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
 
-  const printWindow = window.open("", "_blank");
-  
-  if (printWindow) {
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>${filename}</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { bg-color: #f2f2f2; }
-            h1 { color: #333; }
-          </style>
-        </head>
-        <body>
-          <h1>${filename}</h1>
-          ${printContent.innerHTML}
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.print();
-    // Note: printWindow.close() might be needed after printing if browser doesn't handle it
+  const table = document.getElementById(elementId)?.querySelector("table");
+  if (!table) {
+    console.error(`[exportToPDF] No <table> found inside #${elementId}`);
+    return;
   }
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+  doc.setFontSize(14);
+  doc.text(filename, 14, 15);
+
+  autoTable(doc, {
+    html: table,
+    startY: 22,
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [245, 245, 245] },
+    margin: { left: 14, right: 14 },
+  });
+
+  doc.save(`${filename}.pdf`);
 }
