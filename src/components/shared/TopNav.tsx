@@ -13,6 +13,7 @@ import {
   Plus,
   ChevronDown,
   LogOut,
+  Settings,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,17 +30,42 @@ export function TopNav() {
   const pathname = usePathname();
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         setUserEmail(data.user.email ?? null);
         const meta = data.user.user_metadata as Record<string, string> | undefined;
         setUserName(meta?.full_name ?? meta?.name ?? null);
+
+        // Fetch role from users table
+        const { data: dbUser } = await supabase
+          .from("users")
+          .select("name, role")
+          .eq("id", data.user.id)
+          .single();
+
+        if (dbUser) {
+          if (dbUser.name) setUserName(dbUser.name);
+          setUserRole(dbUser.role);
+        }
       }
     });
   }, []);
+
+  const formatRole = (role: string | null) => {
+    if (!role) return "User";
+    if (role === "admin") return "admin";
+    if (role === "ho_accountant") return "HO Accountant";
+    return role
+      .split("_")
+      .map((word) => 
+        word === "ho" ? "HO" : word.charAt(0).toUpperCase() + word.slice(1)
+      )
+      .join(" ");
+  };
 
   const getInitials = (name?: string | null) => {
     if (!name) return "U";
@@ -106,12 +132,14 @@ export function TopNav() {
                     Outlets
                   </DropdownMenuItem>
                 </Link>
+                {/* 
                 <Link href="/accounts/chart-of-accounts" className="w-full">
                   <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
                     <FileText className="h-4 w-4" />
                     Accounts
                   </DropdownMenuItem>
-                </Link>
+                </Link> 
+                */}
                 <Link href="/admin/users" className="w-full">
                   <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
                     <Users className="h-4 w-4" />
@@ -138,7 +166,7 @@ export function TopNav() {
                 variant="ghost"
                 size="sm"
                 className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname === "/dashboard" || pathname.startsWith("/admin")
+                  pathname === "/dashboard" || pathname === "/"
                     ? "bg-gray-900 text-white hover:bg-gray-800"
                     : "text-gray-400 hover:text-gray-900"
                 }`}
@@ -189,6 +217,7 @@ export function TopNav() {
               </Button>
             </Link>
 
+            {/* 
             <Link href="/accounts/chart-of-accounts">
               <Button
                 variant="ghost"
@@ -201,7 +230,8 @@ export function TopNav() {
               >
                 Accounts
               </Button>
-            </Link>
+            </Link> 
+            */}
 
             <Link href="/admin/users">
               <Button
@@ -234,7 +264,7 @@ export function TopNav() {
                 </Avatar>
                 <div className="hidden md:block text-left">
                   <p className="text-[10px] font-black text-gray-900 leading-none tracking-tight uppercase">
-                    {userName || "User"}
+                    {userRole ? `${formatRole(userRole)} - ` : ""}{userName || "User"}
                   </p>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-1">
                     {userEmail || ""}
@@ -250,7 +280,7 @@ export function TopNav() {
               <DropdownMenuLabel className="p-3">
                 <div className="flex flex-col gap-1">
                   <p className="font-black text-[10px] text-gray-900 uppercase tracking-widest leading-none">
-                    {userName || "User"}
+                    {userRole ? `${formatRole(userRole)} - ` : ""}{userName || "User"}
                   </p>
                   <p className="text-[9px] text-gray-400 font-bold uppercase tracking-tight">
                     {userEmail || ""}
@@ -258,10 +288,12 @@ export function TopNav() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-gray-50" />
-              <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors focus:bg-gray-900 focus:text-white p-3 rounded-none m-0.5">
-                <Users className="h-4 w-4 mr-3" />
-                Terminal Profile
-              </DropdownMenuItem>
+              <Link href="/admin/settings">
+                <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest cursor-pointer transition-colors focus:bg-gray-900 focus:text-white p-3 rounded-none m-0.5">
+                  <Settings className="h-4 w-4 mr-3" />
+                  Settings
+                </DropdownMenuItem>
+              </Link>
               <DropdownMenuSeparator className="bg-gray-50" />
               <DropdownMenuItem
                 onClick={handleSignOut}

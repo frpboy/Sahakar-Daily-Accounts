@@ -30,6 +30,7 @@ interface OutletStats {
   id: string;
   name: string;
   code: string;
+  type: string;
   totalSales: number;
   totalExpenses: number;
   entriesCount: number;
@@ -229,11 +230,22 @@ export default function OutletsPage() {
                     <h3 className="text-xl font-black tracking-tighter text-gray-900 uppercase italic leading-tight">
                       {outlet.name}
                     </h3>
-                    <div className="flex items-center gap-1.5">
-                      <Hash className="h-3 w-3 text-emerald-500" />
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                        {outlet.entriesCount} ACTIVE DATA POINTS
-                      </span>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Hash className="h-3 w-3 text-emerald-500" />
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                          {outlet.entriesCount} ACTIVE DATA POINTS
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 uppercase tracking-tighter border ${
+                          (outlet.type?.toLowerCase().includes("pharmacy") || outlet.code?.startsWith("SHP")) 
+                            ? "bg-blue-50 text-blue-600 border-blue-100" 
+                            : "bg-purple-50 text-purple-600 border-purple-100"
+                        }`}>
+                          {outlet.type || (outlet.code?.startsWith("SHP") ? "Hyper Pharmacy" : "Smart Clinic")}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>

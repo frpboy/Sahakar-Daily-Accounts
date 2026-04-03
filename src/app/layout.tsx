@@ -1,12 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { ClientLayout } from "@/components/shared/ClientLayout";
-import "@/globals.css";
+import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
+const geistSans = GeistSans;
+const geistMono = GeistMono;
 
 export const metadata: Metadata = {
   title: "Sahakar Daily Accounts",
@@ -27,10 +26,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.className}>
-      <body className="antialiased">
+    <html 
+      lang="en" 
+      suppressHydrationWarning 
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
+      <body className={`${geistSans.className} antialiased`}>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
 }
+

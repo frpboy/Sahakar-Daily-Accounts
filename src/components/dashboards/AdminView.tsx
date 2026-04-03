@@ -8,7 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import {
   Building2,
   TrendingUp,
-  DollarSign,
+  IndianRupee,
   Users,
   Settings,
   Activity,
@@ -151,7 +151,7 @@ export default function AdminView() {
         <KPIItem
           title="Expenses"
           value={formatCurrency(stats.totalExpenses)}
-          icon={<DollarSign className="h-4 w-4 text-red-500" />}
+          icon={<IndianRupee className="h-4 w-4 text-red-500" />}
           bg="bg-red-50"
           sub="Operational Costs"
           isDanger

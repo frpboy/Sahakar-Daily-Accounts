@@ -358,13 +358,29 @@ npm run format       # Prettier format
 - `src/app/layout.tsx`: removed KindeProvider/AuthProvider wrapper
 - Deleted: `src/app/AuthProvider.tsx`, `src/app/api/auth/[kindeAuth]/route.ts`
 
+### 2026-04-02 — Fix: Proxy matcher blocking Turbopack static chunks
+
+**Root cause:** `src/proxy.ts` `proxyConfig.matcher` excluded `_next/static` (Webpack production paths) but NOT `_next/dev/` (Turbopack dev paths). In dev mode, all JS/CSS chunks are served from `/_next/dev/static/chunks/`. Unauthenticated requests to these paths were intercepted by the proxy and redirected to `/login`, returning HTML instead of JavaScript/CSS. This caused 21 "Unexpected token '<'" console errors and completely unstyled pages on all routes.
+
+**Fix:**
+- `src/proxy.ts`: changed matcher from `_next/static|_next/image` → `_next/` to exclude ALL Next.js internal paths
+- `src/proxy.ts`: added `export const runtime = "nodejs"` (Next.js 16 Node.js runtime declaration)
+
+**Before:**
+```
+"/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"
+```
+**After:**
+```
+"/((?!_next/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"
+```
+
 ---
 
 ## Pending / Next Steps
 
-- [ ] **Admin first login:** Create `frpboy12@gmail.com` in Supabase Auth → update `users.id` to Supabase UUID
 - [ ] **Google OAuth:** Enable in Supabase Dashboard → Auth → Providers → Google (needs Google Cloud credentials)
-- [ ] **Vercel env vars:** Add all 5 Supabase environment variables in Vercel Dashboard
+- [ ] **Vercel redeploy:** Trigger new deployment to pick up proxy matcher fix
 - [ ] **Admin Users page:** Add Pending Requests UI tab for approving registration requests
 - [ ] **Chart of Accounts UI:** Complete CRUD pages (schema done, UI partial)
 - [ ] **Advanced analytics:** Trend charts, month-over-month comparisons
@@ -382,4 +398,4 @@ npm run format       # Prettier format
 - All currency: INR (₹) format
 - Server actions enforce outlet from session — managers cannot submit for other outlets
 - `SUPABASE_SERVICE_ROLE_KEY` is used ONLY in server actions, never exposed to client
-- `src/proxy.ts` exists as empty stub (Next.js 16 file convention stub — session auth handled by `middleware.ts`)
+- `src/proxy.ts` handles session refresh + auth redirect (Next.js 16 proxy — matcher excludes all `_next/` paths)

@@ -1,0 +1,29 @@
+- generic [ref=e2]:
+  - main [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - heading "Sahakar Accounts" [level=2] [ref=e7]
+        - paragraph [ref=e8]: Sign in to your account
+      - generic [ref=e9]:
+        - button "Continue with Google" [ref=e10]:
+          - img [ref=e11]
+          - text: Continue with Google
+        - generic [ref=e17]: or
+        - generic [ref=e18]:
+          - button "Password" [ref=e19]
+          - button "Magic Link" [ref=e20]
+        - generic [ref=e21]:
+          - generic [ref=e22]:
+            - text: Email
+            - textbox "Email" [ref=e23]:
+              - /placeholder: you@example.com
+          - generic [ref=e24]:
+            - text: Password
+            - textbox "Password" [ref=e25]:
+              - /placeholder: ••••••••
+          - button "Sign in" [ref=e26]
+        - paragraph [ref=e27]:
+          - text: No account?
+          - link "Request access" [ref=e28] [cursor=pointer]:
+            - /url: /register
+  - region "Notifications alt+T"

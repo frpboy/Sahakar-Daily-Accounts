@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, registrationRequests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
@@ -170,5 +170,66 @@ export async function deleteUser(id: string) {
   } catch (error) {
     console.error("Delete user error:", error);
     return { success: false, error: "Failed to delete user" };
+  }
+}
+
+export async function getRegistrationRequests() {
+  try {
+    const result = await db.query.registrationRequests.findMany({
+      orderBy: (requests, { desc }) => [desc(requests.createdAt)],
+    });
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Fetch requests error:", error);
+    return { success: false, error: "Failed to fetch requests" };
+  }
+}
+
+export async function approveRequest(requestId: string, role: CreateUserInput["role"], outletId?: string) {
+  try {
+    const request = await db.query.registrationRequests.findFirst({
+      where: (table, { eq }) => eq(table.id, requestId),
+    });
+
+    if (!request) return { success: false, error: "Request not found" };
+
+    // Create the user
+    // We reuse logic from createUser or just call it directly if we could (but it's async)
+    const userResult = await createUser({
+      name: request.name,
+      email: request.email,
+      phone: request.phone ?? undefined,
+      role,
+      outletId
+    });
+
+    if (!userResult.success) return userResult;
+
+    // Update request status
+    await db
+      .update(registrationRequests)
+      .set({ status: "approved", updatedAt: new Date() })
+      .where(eq(registrationRequests.id, requestId));
+
+    revalidatePath("/admin/users");
+    return { success: true, message: "Request approved and user created" };
+  } catch (error) {
+    console.error("Approve request error:", error);
+    return { success: false, error: "Failed to approve request" };
+  }
+}
+
+export async function rejectRequest(requestId: string) {
+  try {
+    await db
+      .update(registrationRequests)
+      .set({ status: "rejected", updatedAt: new Date() })
+      .where(eq(registrationRequests.id, requestId));
+
+    revalidatePath("/admin/users");
+    return { success: true, message: "Request rejected" };
+  } catch (error) {
+    console.error("Reject request error:", error);
+    return { success: false, error: "Failed to reject request" };
   }
 }

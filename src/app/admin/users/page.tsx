@@ -23,6 +23,8 @@ const ROLE_COLORS: Record<string, string> = {
   outlet_accountant: "bg-green-100 text-green-800",
 };
 
+import { RegistrationRequestsList } from "@/components/admin/RegistrationRequestsList";
+
 export default async function UsersPage() {
   const users = await db.query.users
     .findMany({
@@ -39,6 +41,12 @@ export default async function UsersPage() {
     })
     .catch(() => []);
 
+  const registrationRequests = await db.query.registrationRequests
+    .findMany({
+      orderBy: (requests, { desc }) => [desc(requests.createdAt)],
+    })
+    .catch(() => []);
+
   return (
     <>
       <Container className="py-8">
@@ -52,6 +60,20 @@ export default async function UsersPage() {
             </p>
           </div>
         </div>
+
+        {/* Pending Requests Section */}
+        {registrationRequests.some(r => r.status === "pending") && (
+          <div className="mb-12">
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              Pending Registrations
+            </h2>
+            <RegistrationRequestsList 
+              requests={registrationRequests} 
+              outlets={outlets.map(o => ({ id: o.id, name: o.name }))}
+            />
+          </div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-3">
           {/* User Form */}

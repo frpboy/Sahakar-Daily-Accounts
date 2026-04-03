@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, calculateTotalSales, calculateProfit } from "@/lib/utils";
-import { Building2, Calendar, TrendingUp, DollarSign, ArrowLeft } from "lucide-react";
+import { Building2, Calendar, TrendingUp, IndianRupee, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
 
@@ -191,7 +191,7 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-medium text-gray-500">Total Expenses</p>
-                <DollarSign className="h-4 w-4 text-red-600" />
+                <IndianRupee className="h-4 w-4 text-red-600" />
               </div>
               <p className="text-2xl md:text-3xl font-bold text-gray-900">{formatCurrency(stats.totalExpenses)}</p>
             </CardContent>

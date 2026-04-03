@@ -97,6 +97,10 @@ const config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "spin-slow": "spin 8s linear infinite",
+      },
+      boxShadow: {
+        "premium-lg": "0 20px 50px rgba(0, 0, 0, 0.05), 0 10px 20px rgba(0, 0, 0, 0.02)",
       },
     },
   },
