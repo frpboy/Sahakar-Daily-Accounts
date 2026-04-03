@@ -12,6 +12,7 @@ export async function submitRegistrationRequest(data: {
   name: string;
   email: string;
   phone?: string;
+  password?: string;
 }) {
   try {
     const existing = await db
@@ -28,6 +29,7 @@ export async function submitRegistrationRequest(data: {
       name: data.name,
       email: data.email,
       phone: data.phone ?? null,
+      password: data.password ?? null,
       status: "pending",
     });
 
@@ -89,24 +91,28 @@ export async function approveRegistrationRequest(
 
   if (!request) return { error: "Request not found" };
 
-  // Use service role key to invite user via Supabase Admin API
+  // Use service role key to create user via Supabase Admin API
   const adminSupabase = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const { data: inviteData, error: inviteError } = await adminSupabase.auth.admin.inviteUserByEmail(
-    request.email,
-    { redirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace("supabase.co", "") || ""}` }
-  );
+  const hasPassword = request.password && request.password.length > 0;
 
-  if (inviteError) {
-    return { error: `Failed to send invite: ${inviteError.message}` };
+  const { data: createdUser, error: createError } = await adminSupabase.auth.admin.createUser({
+    email: request.email,
+    password: hasPassword ? request.password! : undefined,
+    email_confirm: true,
+    user_metadata: { name: request.name },
+  });
+
+  if (createError) {
+    return { error: `Failed to create user: ${createError.message}` };
   }
 
   // Create user record in our users table
   await db.insert(users).values({
-    id: inviteData.user.id,
+    id: createdUser.user.id,
     name: request.name,
     email: request.email,
     phone: request.phone ?? undefined,
@@ -119,6 +125,12 @@ export async function approveRegistrationRequest(
   await db
     .update(registrationRequests)
     .set({ status: "approved", reviewedBy: user.id, updatedAt: new Date() })
+    .where(eq(registrationRequests.id, requestId));
+
+  // Clear the stored password after use
+  await db
+    .update(registrationRequests)
+    .set({ password: null })
     .where(eq(registrationRequests.id, requestId));
 
   revalidatePath("/admin/users");

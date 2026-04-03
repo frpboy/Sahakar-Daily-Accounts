@@ -11,7 +11,7 @@ import Link from "next/link";
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,9 +143,24 @@ export default function RegisterPage() {
                 className="h-11 bg-white border-gray-200 focus:ring-gray-900 focus:border-gray-900 transition-all"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Choose a password"
+                className="h-11 bg-white border-gray-200 focus:ring-gray-900 focus:border-gray-900 transition-all"
+                required
+                minLength={6}
+              />
+            </div>
             <div className="pt-2">
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full h-11 bg-gray-900 hover:bg-gray-800 text-white font-semibold rounded-lg transition-all shadow-md shadow-gray-200"
                 disabled={loading}
               >
@@ -171,7 +186,7 @@ export default function RegisterPage() {
       {/* Footer Branding */}
       <div className="absolute bottom-8 left-0 w-full text-center pointer-events-none">
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">
-          Reliable • Secure • Enterprise
+          Powered by Sahakar Group IT
         </p>
       </div>
     </div>

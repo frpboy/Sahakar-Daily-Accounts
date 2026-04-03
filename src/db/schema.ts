@@ -157,6 +157,7 @@ export const registrationRequests = pgTable("registration_requests", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),
+  password: text("password"),
   status: text("status").default("pending"), // pending | approved | rejected
   reviewedBy: text("reviewed_by"),
   createdAt: timestamp("created_at").defaultNow(),
