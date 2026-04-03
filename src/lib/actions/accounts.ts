@@ -6,6 +6,7 @@ import { dailyEntrySchema } from "@/lib/validations/entry";
 import { revalidatePath } from "next/cache";
 import { eq, and, between, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/actions/audit";
 
 export async function submitDailyAccount(rawData: unknown) {
   try {
@@ -49,7 +50,21 @@ export async function submitDailyAccount(rawData: unknown) {
     // 5. Format date for database
     const dateStr = validatedData.date.toISOString().split("T")[0];
 
-    // 6. Database Upsert (Insert or Update)
+    // 6. Determine create vs update for audit
+    const existing = await db
+      .select()
+      .from(dailyAccounts)
+      .where(
+        and(
+          eq(dailyAccounts.outletId, targetOutletId),
+          eq(dailyAccounts.date, dateStr)
+        )
+      )
+      .limit(1);
+
+    const isUpdate = existing.length > 0;
+
+    // 7. Database Upsert (Insert or Update)
     await db
       .insert(dailyAccounts)
       .values({
@@ -78,7 +93,28 @@ export async function submitDailyAccount(rawData: unknown) {
         },
       });
 
-    // 7. Clear Cache so the UI updates
+    // 8. Log audit event
+    await logAudit({
+      userId,
+      userName: dbUser.name,
+      action: isUpdate ? "update" : "create",
+      entityType: "daily_account",
+      entityId: `${targetOutletId}:${dateStr}`,
+      oldData: isUpdate ? (existing[0] as Record<string, unknown>) : undefined,
+      newData: {
+        outletId: targetOutletId,
+        date: dateStr,
+        saleCash: validatedData.saleCash,
+        saleUpi: validatedData.saleUpi,
+        saleCredit: validatedData.saleCredit,
+        saleReturn: validatedData.saleReturn,
+        expenses: validatedData.expenses,
+        purchase: validatedData.purchase,
+        closingStock: validatedData.closingStock,
+      },
+    });
+
+    // 9. Clear Cache so the UI updates
     revalidatePath("/entry");
     revalidatePath("/reports");
     revalidatePath("/dashboard");
