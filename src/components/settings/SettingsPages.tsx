@@ -6,25 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { 
   User, Mail, Phone, MapPin, Building2, Globe, Settings,
-  Search, Plus, Shield, Bell, History, 
+  Search, Plus, Bell,
   Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 // Helper components
-const SectionHeader = ({ title, subtitle, color = "emerald" }: { title: string, subtitle: string, color?: "emerald" | "red" | "blue" }) => (
+const SectionHeader = ({ title, subtitle }: { title: string, subtitle: string, color?: "emerald" | "red" | "blue" }) => (
   <div className="space-y-1 mb-8">
-    <h2 className="text-2xl font-black uppercase tracking-tight italic">{title}</h2>
-    <p className={cn("text-[10px] font-black uppercase tracking-widest", colors[color])}>{subtitle}</p>
+    <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+    <p className="text-xs text-gray-500">{subtitle}</p>
   </div>
 );
 
-const colors = {
-  emerald: "text-emerald-600",
-  red: "text-red-600",
-  blue: "text-blue-600",
-};
 
 export function PersonalProfile({ 
   userName, email, phone, role, outlet, onSave 
@@ -47,13 +42,13 @@ export function PersonalProfile({
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader title="Personal Profile" subtitle="Identity Management Hub" />
+      <SectionHeader title="Personal Profile" subtitle="Your Profile" />
 
       <div className="grid gap-8 max-w-2xl">
         <div className="space-y-6 bg-gray-50/50 border border-gray-100 p-8 rounded-none">
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Identity Profile Descriptor</label>
+              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Name</label>
               <div className="relative">
                 <Input value={fullLabel} readOnly className="rounded-none border-gray-100 bg-gray-50/50 pl-10 h-11 text-xs font-black uppercase tracking-widest text-gray-900 cursor-default" />
                 <User className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
@@ -62,14 +57,14 @@ export function PersonalProfile({
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Master Authentication Email</label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Email Address</label>
                 <div className="relative">
                   <Input disabled value={email} className="rounded-none border-gray-100 bg-gray-50/50 pl-10 h-11 text-xs font-mono text-gray-400 cursor-not-allowed" />
                   <Mail className="absolute left-3 top-3.5 h-4 w-4 text-gray-300" />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Mobile Terminal Pointer</label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Phone Number</label>
                 <div className="relative">
                   <Input 
                     value={formData.phone}
@@ -90,12 +85,12 @@ export function PersonalProfile({
                 <MapPin className="h-5 w-5 text-gray-400" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Base Deployment Node</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Your Outlet</p>
                 <p className="text-xs font-black text-gray-900 uppercase italic underline decoration-emerald-500 decoration-2">{outlet.name}</p>
                 <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{outlet.type} // {outlet.code}</p>
               </div>
             </div>
-            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest leading-none text-right">Fixed Assignment<br/>Contact HO for transfer</p>
+            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest leading-none text-right">Contact admin to change outlet</p>
           </div>
         )}
 
@@ -105,7 +100,7 @@ export function PersonalProfile({
             onClick={handleUpdate}
             className="px-10 py-5 bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.25em] shadow-premium-lg hover:bg-black transition-all flex items-center gap-2 disabled:opacity-50"
           >
-            {isSaving ? "Syncing..." : "Push Identity Changes"} <History className="h-3 w-3 text-emerald-400" />
+            {isSaving ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </div>
@@ -120,7 +115,7 @@ export function SecuritySettings({ onUpdatePassword }: { onUpdatePassword: (pass
 
   const handleUpdate = async () => {
     if (password !== confirm) {
-      toast.error("PASSWORD MISMATCH");
+      toast.error("Passwords do not match");
       return;
     }
     setIsUpdating(true);
@@ -132,28 +127,27 @@ export function SecuritySettings({ onUpdatePassword }: { onUpdatePassword: (pass
 
   return (
     <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SectionHeader title="Security Controls" subtitle="Authentication Integrity Terminal" color="red" />
+      <SectionHeader title="Change Password" subtitle="Update your login password" />
 
       <div className="grid gap-8 max-w-2xl">
         <div className="p-8 border border-gray-200 bg-white space-y-8">
-          <h4 className="text-xs font-black uppercase tracking-widest italic">Update Security Password</h4>
           <div className="space-y-6">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">New Password Sequence</label>
-              <Input 
-                type="password" 
+              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">New Password</label>
+              <Input
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter new string" className="rounded-none border-gray-200 italic text-[10px] h-12" 
+                placeholder="Enter new password" className="rounded-none border-gray-200 italic text-[10px] h-12"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Verify Password</label>
-              <Input 
-                type="password" 
+              <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">Confirm Password</label>
+              <Input
+                type="password"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Confirm string" className="rounded-none border-gray-200 italic text-[10px] h-12" 
+                placeholder="Confirm new password" className="rounded-none border-gray-200 italic text-[10px] h-12"
               />
             </div>
             <Button 
@@ -161,19 +155,11 @@ export function SecuritySettings({ onUpdatePassword }: { onUpdatePassword: (pass
               onClick={handleUpdate}
               className="rounded-none bg-gray-900 text-white text-[10px] font-black uppercase tracking-[0.2em] w-full py-6 shadow-premium-lg"
             >
-              {isUpdating ? "Processing..." : "Update Password Key"}
+              {isUpdating ? "Updating..." : "Update Password"}
             </Button>
           </div>
         </div>
 
-        <div className="p-6 bg-red-50 border border-red-100 flex items-start gap-4 transition-all hover:bg-red-100/50 group">
-          <Shield className="h-5 w-5 text-red-600 mt-1" />
-          <div className="space-y-1">
-            <p className="text-[10px] font-black text-red-900 uppercase">Emergency Terminal Lockdown</p>
-            <p className="text-[9px] font-bold text-red-700/70 uppercase max-w-xs leading-relaxed">Instantly revoke all active session tokens for this unique identity pointer.</p>
-            <button className="text-[9px] font-black text-red-600 underline decoration-2 underline-offset-4 uppercase mt-2 group-hover:text-red-900 transition-colors">Revoke All Access Tokens</button>
-          </div>
-        </div>
       </div>
     </div>
   );
