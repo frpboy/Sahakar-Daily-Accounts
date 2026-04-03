@@ -1,14 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/register", "/auth/callback"];
+const PUBLIC_PATHS = ["/login", "/register", "/api/auth/callback"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
+  const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
 
   let supabaseResponse = NextResponse.next({ request });
 
@@ -37,10 +35,18 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+  // Authenticated user hitting login/register → send to dashboard
+  if (user && isPublic) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
+  // Unauthenticated user hitting protected route → send to login
+  if (!user && !isPublic) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
