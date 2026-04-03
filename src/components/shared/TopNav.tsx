@@ -140,12 +140,14 @@ export function TopNav() {
                   </DropdownMenuItem>
                 </Link> 
                 */}
-                <Link href="/admin/users" className="w-full">
-                  <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
-                    <Users className="h-4 w-4" />
-                    Staff
-                  </DropdownMenuItem>
-                </Link>
+                {(userRole === "admin" || userRole === "ho_accountant") && (
+                  <Link href="/admin/users" className="w-full">
+                    <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
+                      <Users className="h-4 w-4" />
+                      Staff
+                    </DropdownMenuItem>
+                  </Link>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -233,19 +235,21 @@ export function TopNav() {
             </Link> 
             */}
 
-            <Link href="/admin/users">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
-                  pathname.startsWith("/admin/users")
-                    ? "bg-gray-900 text-white hover:bg-gray-800"
-                    : "text-gray-400 hover:text-gray-900"
-                }`}
-              >
-                Staff
-              </Button>
-            </Link>
+            {(userRole === "admin" || userRole === "ho_accountant") && (
+              <Link href="/admin/users">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-[10px] font-black uppercase tracking-widest h-10 rounded-none px-4 ${
+                    pathname.startsWith("/admin/users")
+                      ? "bg-gray-900 text-white hover:bg-gray-800"
+                      : "text-gray-400 hover:text-gray-900"
+                  }`}
+                >
+                  Staff
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
 

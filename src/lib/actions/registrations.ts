@@ -79,8 +79,8 @@ export async function approveRegistrationRequest(
     .where(eq(users.id, user.id))
     .limit(1);
 
-  if (!dbUser[0] || !["admin", "ho_accountant"].includes(dbUser[0].role ?? "")) {
-    return { error: "Forbidden" };
+  if (!dbUser[0] || dbUser[0].role !== "admin") {
+    return { error: "Only admins can approve registration requests" };
   }
 
   const [request] = await db
@@ -149,8 +149,8 @@ export async function rejectRegistrationRequest(requestId: string) {
     .where(eq(users.id, user.id))
     .limit(1);
 
-  if (!dbUser[0] || !["admin", "ho_accountant"].includes(dbUser[0].role ?? "")) {
-    return { error: "Forbidden" };
+  if (!dbUser[0] || dbUser[0].role !== "admin") {
+    return { error: "Only admins can reject registration requests" };
   }
 
   await db

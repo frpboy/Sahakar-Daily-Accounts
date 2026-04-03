@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Toaster } from "sonner";
 import { TopNav } from "./TopNav";
+import { PWAPrompt } from "./PWAPrompt";
 
 export function ClientLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -14,6 +15,7 @@ export function ClientLayout({ children }: { children: ReactNode }) {
       {!isPublicPage && <TopNav />}
       <main className="flex-1">{children}</main>
       <Toaster position="top-center" richColors closeButton />
+      {!isPublicPage && <PWAPrompt />}
     </div>
   );
 }

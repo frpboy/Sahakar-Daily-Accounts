@@ -111,7 +111,7 @@ export default function RegisterPage() {
                 id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="Ex: Rajesh Kumar"
+                placeholder="John Doe"
                 className="h-11 bg-white border-gray-200 focus:ring-gray-900 focus:border-gray-900 transition-all"
                 required
               />

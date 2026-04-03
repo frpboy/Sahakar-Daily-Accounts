@@ -47,7 +47,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/api/auth/callback?next=/settings`,
+      redirectTo: `${window.location.origin}/api/auth/callback?next=/update-password`,
     });
     if (error) {
       toast.error(error.message);
@@ -247,7 +247,7 @@ export default function LoginPage() {
 
       <div className="absolute bottom-8 left-0 w-full text-center pointer-events-none">
         <p className="text-[10px] uppercase tracking-[0.2em] text-gray-400 font-bold">
-          Powered by Sahakar Group IT
+          Powered by Zabnix Private Limited
         </p>
       </div>
     </div>

@@ -5,7 +5,7 @@
 **Project Name:** Sahakar Daily Accounts (DOAMS — Daily Outlet Account Management System)
 **Tech Stack:** Next.js 16.2.2, PostgreSQL (Supabase), Drizzle ORM, Tailwind CSS, shadcn/ui, Supabase Auth
 **Date Started:** 2026-04-01
-**Last Updated:** 2026-04-03
+**Last Updated:** 2026-04-03 (Session 4d)
 **Production URL:** https://doams.vercel.app
 
 ---
@@ -15,10 +15,10 @@
 | Route                              | Type     | Description                        |
 | ---------------------------------- | -------- | ---------------------------------- |
 | `/`                                | Redirect | → `/admin/overview`                |
-| `/login`                           | Static   | Supabase login (password/magic/Google) |
+| `/login`                           | Static   | Supabase login (password/magic/forgot password) |
 | `/register`                        | Static   | Request access form (no public signup) |
 | `/admin/overview`                  | Static   | Admin dashboard                    |
-| `/admin/users`                     | Static   | User management + pending requests |
+| `/admin/users`                     | Static   | User management (admin) / read-only user list (ho_accountant) |
 | `/dashboard`                       | Static   | Dashboard                          |
 | `/entry`                           | Static   | Daily entry form                   |
 | `/reports`                         | Static   | All outlets reports                |
@@ -26,7 +26,8 @@
 | `/outlets`                         | Static   | All outlets view                   |
 | `/outlets/[id]`                    | Dynamic  | Single outlet detail               |
 | `/accounts/chart-of-accounts`      | Static   | Chart of Accounts                  |
-| `/test`                            | Static   | Test page                          |
+| `/admin/settings`                  | Static   | User settings (Profile, Change Password, Notifications) |
+| `/update-password`                 | Static   | Set new password after reset link (public, accessible while authenticated) |
 
 ## API Routes
 
@@ -50,25 +51,25 @@
 
 - **Provider:** Supabase Auth (project: `grdeedwkzqyfxgfeskdr`)
 - **SDK:** `@supabase/supabase-js` + `@supabase/ssr`
-- **Middleware:** `middleware.ts` (root) — Vercel Routing Middleware with Node.js runtime
-- **Session refresh:** `src/lib/supabase/middleware.ts` — `updateSession()` helper
-- **Public paths:** `/login`, `/register`, `/auth/callback`
+- **Middleware:** `src/proxy.ts` — Next.js 16 routing middleware (always Node.js; do NOT add `export const runtime`)
+- **Public paths:** `/login`, `/register`, `/api/auth/callback`, `/update-password`
+- **Auth-redirect paths** (authenticated users bounced to `/dashboard`): `/login`, `/register` only
 - **Protected:** All other routes redirect to `/login` if no session
 
 ### Login Methods
 
 - **Email + Password** — standard sign in
 - **Magic Link** — passwordless OTP sent to email
-- **Google OAuth** — configure in Supabase Dashboard → Auth → Providers → Google
+- **Forgot Password** — sends reset link via `resetPasswordForEmail`, redirects to `/settings` after reset
 
 ### Registration Flow (No Public Signup)
 
-1. User visits `/register` → submits name, email, phone
-2. Record inserted into `registration_requests` table (status: `pending`)
-3. Admin or HO Accountant reviews at `/admin/users` → Pending Requests tab
-4. On approval: `supabase.auth.admin.inviteUserByEmail()` sends invite email
+1. User visits `/register` → submits name, email, phone, **password**
+2. Record inserted into `registration_requests` table (status: `pending`, password stored)
+3. **Admin only** reviews at `/admin/users` → Pending Requests section (ho_accountant cannot see or action this)
+4. On approval: `supabase.auth.admin.createUser({ email, password, email_confirm: true })` — user can log in immediately, no invite email needed
 5. User row created in `users` table with Supabase UUID as ID
-6. User clicks invite link → sets password → can log in
+6. Password cleared from `registration_requests` table after approval
 
 ### Auth Client Utilities
 
@@ -118,7 +119,7 @@ const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limi
 **Host (Pooler):** `aws-1-ap-southeast-2.pooler.supabase.com:6543`
 **Host (Direct):** `db.grdeedwkzqyfxgfeskdr.supabase.co:5432`
 
-### Schema — Tables (9 total)
+### Schema — Tables (12 total)
 
 | Table | Description |
 |-------|-------------|
@@ -130,7 +131,10 @@ const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limi
 | `chart_of_accounts` | COA Level 3: individual accounts with codes |
 | `audit_logs` | Action audit trail (JSONB old/new data) |
 | `notifications` | User notifications |
-| `registration_requests` | Pending user access requests (status: pending/approved/rejected) |
+| `registration_requests` | Pending user access requests — includes `password` column (cleared after approval) |
+| `financial_years` | Financial year cycles with start/end dates and current flag |
+| `system_preferences` | Global and per-outlet config key-value pairs |
+| `submission_reminders` | Scheduled daily entry reminder times per outlet |
 
 ### Key Constraints
 
@@ -196,15 +200,18 @@ Permission matrix: `src/lib/permissions.ts`
 
 ### 4. RBAC Permissions
 
-| Feature           | Admin | HO Acc | Outlet Mgr | Outlet Acc |
-| ----------------- | :---: | :----: | :--------: | :--------: |
-| User Management   |  ✅   |   ✅   |     ❌     |     ❌     |
-| Approve Requests  |  ✅   |   ✅   |     ❌     |     ❌     |
-| Chart of Accounts |  ✅   |   ✅   |     ✅     |     ✅     |
-| All Reports       |  ✅   |   ✅   |     ❌     |     ❌     |
-| Own Reports       |  ✅   |   ✅   |     ✅     |     ✅     |
-| All Outlets       |  ✅   |   ✅   |     ❌     |     ❌     |
-| New Entry         |  ✅   |   ✅   |     ✅     |     ✅     |
+| Feature                        | Admin | HO Acc      | Outlet Mgr | Outlet Acc |
+| ------------------------------ | :---: | :---------: | :--------: | :--------: |
+| View users list (Staff)        |  ✅   | ✅ read-only |     ❌     |     ❌     |
+| Add / edit / delete users      |  ✅   |     ❌      |     ❌     |     ❌     |
+| Approve / reject registrations |  ✅   |     ❌      |     ❌     |     ❌     |
+| /admin/overview                |  ✅   |     ✅      |  redirect  |  redirect  |
+| Chart of Accounts              |  ✅   |     ✅      |     ✅     |     ✅     |
+| All Reports                    |  ✅   |     ✅      |     ❌     |     ❌     |
+| Own Reports                    |  ✅   |     ✅      |     ✅     |     ✅     |
+| All Outlets view               |  ✅   |     ✅      |     ❌     |     ❌     |
+| New Entry (all outlets)        |  ✅   |     ✅      |     ❌     |     ❌     |
+| New Entry (own outlet)         |  ✅   |     ✅      |     ✅     |     ✅     |
 
 ### 5. Reports
 
@@ -241,13 +248,19 @@ Permission matrix: `src/lib/permissions.ts`
 
 ## Components
 
-| Component         | Path                                      | Purpose                        |
-| ----------------- | ----------------------------------------- | ------------------------------ |
-| TopNav            | `components/shared/TopNav.tsx`            | Navigation with Supabase user  |
-| ClientLayout      | `components/shared/ClientLayout.tsx`      | Root layout wrapper            |
-| DailyEntryForm    | `components/forms/DailyEntryForm.tsx`     | Entry form with tally          |
-| UserForm          | `components/forms/UserForm.tsx`           | User CRUD form                 |
-| AccountsDataTable | `components/tables/AccountsDataTable.tsx` | Reports table                  |
+| Component               | Path                                           | Purpose                                     |
+| ----------------------- | ---------------------------------------------- | ------------------------------------------- |
+| TopNav                  | `components/shared/TopNav.tsx`                 | Navigation with Supabase user               |
+| ClientLayout            | `components/shared/ClientLayout.tsx`           | Root layout wrapper + PWAPrompt mount       |
+| PWAPrompt               | `components/shared/PWAPrompt.tsx`              | PWA install banner + notification permission banner |
+| DailyEntryForm          | `components/forms/DailyEntryForm.tsx`          | Entry form with tally + overwrite detection |
+| UserForm                | `components/forms/UserForm.tsx`                | User CRUD form                              |
+| UsersList               | `components/admin/UsersList.tsx`               | User list with inline edit/delete           |
+| RegistrationRequestsList| `components/admin/RegistrationRequestsList.tsx`| Pending registration approvals              |
+| AccountsDataTable       | `components/tables/AccountsDataTable.tsx`      | Reports table                               |
+| PersonalProfile         | `components/settings/SettingsPages.tsx`        | Profile form with outlet card for outlet users |
+| SecuritySettings        | `components/settings/SettingsPages.tsx`        | Change password form                        |
+| NotificationSettings    | `components/settings/NotificationSettings.tsx` | Notification permission management          |
 
 ### UI Components (shadcn/ui)
 
@@ -259,26 +272,28 @@ button, input, select, card, form, label, table, container, badge, switch, avata
 
 | File                                    | Purpose                              |
 | --------------------------------------- | ------------------------------------ |
-| `src/middleware.ts`                     | Route protection + session refresh (root) |
+| `src/proxy.ts`                          | Route protection + session refresh (Next.js 16 middleware) |
 | `src/lib/actions/audit.ts`             | `logAudit()` helper → writes to `audit_logs` table |
 | `src/types/supabase.ts`                | Generated Supabase TypeScript types  |
 | `src/lib/supabase/client.ts`            | Browser Supabase client              |
 | `src/lib/supabase/server.ts`            | Server Supabase client (async)       |
-| `src/lib/supabase/middleware.ts`        | updateSession() helper               |
-| `src/db/schema.ts`                      | Drizzle schema (9 tables)            |
+| `src/db/schema.ts`                      | Drizzle schema (12 tables)           |
 | `src/db/index.ts`                       | postgres.js + Drizzle client         |
 | `src/db/seed.ts`                        | Database seeding script              |
 | `drizzle.config.ts`                     | Drizzle config (uses DIRECT_URL)     |
 | `src/lib/permissions.ts`               | RBAC permission matrix               |
-| `src/lib/actions/accounts.ts`          | Daily account server actions         |
-| `src/lib/actions/users.ts`             | User CRUD actions                    |
-| `src/lib/actions/registrations.ts`     | Registration request actions         |
+| `src/lib/actions/accounts.ts`          | Daily account server actions + audit logging |
+| `src/lib/actions/users.ts`             | User CRUD actions + audit logging    |
+| `src/lib/actions/registrations.ts`     | Registration request actions (createUser on approve) |
 | `src/lib/actions/coa.ts`               | Chart of Accounts actions            |
 | `src/lib/validations/entry.ts`         | Zod validation schemas               |
-| `src/app/login/page.tsx`               | Login page (password/magic/Google)   |
-| `src/app/register/page.tsx`            | Registration request page            |
+| `src/lib/export.ts`                    | jsPDF export — A4 landscape PDF from table DOM |
+| `src/app/login/page.tsx`               | Login page (password / magic link / forgot password) |
+| `src/app/register/page.tsx`            | Registration request page (with password field) |
 | `src/app/api/auth/callback/route.ts`   | Supabase PKCE callback handler       |
-| `src/app/api/registration-requests/route.ts` | Public registration endpoint   |
+| `src/app/api/registration-requests/route.ts` | Public registration POST endpoint |
+| `public/sw.js`                          | Service worker — push event handler + notification click |
+| `public/manifest.json`                  | PWA manifest (icons, start_url, display: standalone) |
 
 ---
 
@@ -334,6 +349,127 @@ npm run format       # Prettier format
 ---
 
 ## Migration History
+
+### 2026-04-03 — RBAC Enforcement: Admin vs HO Accountant (Session 4c)
+
+**Problem:** Admin and HO Accountant had identical access everywhere despite having different permissions in `permissions.ts`. Nothing enforced the distinction.
+
+**Correct role boundaries enforced:**
+
+| Capability | Admin | HO Accountant | Outlet roles |
+|---|:---:|:---:|:---:|
+| View users list | ✅ | ✅ | ❌ |
+| Add/edit/delete users | ✅ | ❌ | ❌ |
+| Approve/reject registrations | ✅ | ❌ | ❌ |
+| Staff nav link visible | ✅ | ✅ | ❌ |
+| /admin/overview | ✅ | ✅ | redirect |
+| /admin/users | ✅ | read-only | redirect |
+
+**`src/lib/actions/registrations.ts`:**
+- `approveRegistrationRequest`: changed from `["admin","ho_accountant"]` → `admin` only
+- `rejectRegistrationRequest`: same change
+
+**`src/lib/actions/users.ts`:**
+- `createUser`, `updateUser`, `deleteUser`: added DB role check — returns error if caller is not admin
+
+**`src/app/admin/users/page.tsx`:**
+- Reads caller's role from DB at render time
+- Outlet-level roles (`outlet_manager`, `outlet_accountant`) → `redirect("/dashboard")`
+- Passes `isAdmin` boolean to child components
+- Pending Registrations section: only rendered for admin
+- Add User form: only rendered for admin
+- Page subtitle changes: "Manage users…" for admin, "View all users" for ho_accountant
+
+**`src/components/admin/UsersList.tsx`:**
+- Added `isAdmin?: boolean` prop (defaults to false)
+- Edit (pencil) and Delete (trash) buttons: hidden when `isAdmin` is false
+- Inline edit form: guarded by `isAdmin` flag
+
+**`src/components/shared/TopNav.tsx`:**
+- Desktop and mobile "Staff" links: wrapped in `userRole === "admin" || userRole === "ho_accountant"` check
+- Outlet-level users see no Staff link at all
+
+**`src/app/admin/overview/page.tsx`:**
+- Added server-side role check
+- Outlet-level roles → `redirect("/dashboard")`
+
+### 2026-04-03 — Forgot Password Flow Fix (Session 4b)
+
+**Root cause (two bugs):**
+1. `resetPasswordForEmail` redirectTo pointed to `/settings` — that route does not exist (correct route is `/admin/settings`)
+2. `/admin/settings` just opens the Profile tab with no forced "enter new password" UI
+3. `proxy.ts` `isPublic` check was shared with `isAuthRedirect` — authenticated users landing on `/update-password` after the reset callback were immediately bounced to `/dashboard` before they could set their password
+
+**Fix — dedicated `/update-password` page (`src/app/update-password/page.tsx`):**
+- Public route (no auth required, but also safe when authenticated)
+- Shows "Set New Password" form: new password + confirm password fields
+- Calls `supabase.auth.updateUser({ password })` on submit
+- Validates: passwords match + minimum 6 characters
+- On success: toast + redirect to `/dashboard` after 1.5s
+
+**Fix — login page (`src/app/login/page.tsx`):**
+- Changed `redirectTo` from `?next=/settings` → `?next=/update-password`
+
+**Fix — proxy.ts (`src/proxy.ts`):**
+- Split `PUBLIC_PATHS` into two separate arrays:
+  - `PUBLIC_PATHS` — all routes accessible without auth (includes `/update-password`)
+  - `AUTH_REDIRECT_PATHS` — routes that redirect authenticated users to dashboard (`/login`, `/register` only)
+- `/update-password` is now accessible whether the user is authenticated or not
+- Note: `proxy.ts` always runs on Node.js — `export const runtime` is NOT allowed and causes a build error if added
+
+### 2026-04-03 — PWA, Push Notifications & UX Improvements (Session 4)
+
+**PWA installation prompt (`src/components/shared/PWAPrompt.tsx`):**
+- Listens for `beforeinstallprompt` event (triggered by Chrome/Edge when installable)
+- Shows bottom banner: "Install DOAMS — Add to home screen for quick access" with Install / dismiss buttons
+- Mounted in `ClientLayout` for all authenticated pages
+
+**Push notification support:**
+- `public/sw.js`: new service worker — registers on load, handles `push` events (shows notification with icon), handles `notificationclick` (focuses/opens app window)
+- `public/manifest.json` linked in `layout.tsx` via `metadata.manifest`
+- `PWAPrompt` shows "Enable notifications" banner on first visit if permission is `default`
+- Requests `Notification.requestPermission()` on user click; registers service worker on grant
+
+**Notification Settings tab (`src/components/settings/NotificationSettings.tsx`):**
+- New "Notifications" sidebar tab added to `/admin/settings`
+- Shows permission state: enabled (green), blocked (red with browser instructions), not supported, or prompt
+- "Enable Notifications" button requests permission + registers SW
+- "Send test" button fires a local notification to verify everything works
+- Service worker registration status indicator
+
+**Outlet display fix (`src/components/settings/SettingsPages.tsx`):**
+- Outlet card for outlet-level users was using `text-[8px]` / `text-[9px]` (nearly invisible)
+- Replaced with a prominent green card: outlet name in `text-2xl font-bold`, labelled "Your Assigned Outlet" with emerald background
+- Shows outlet type and code as secondary info; "Contact admin to change" note
+
+**DB migration:**
+```sql
+ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS password TEXT;
+```
+
+### 2026-04-03 — Cleanup, Error Boundaries, Loading Skeletons & Inline User Edit (Session 3)
+
+**Cleanup:**
+- Deleted `/app/test/page.tsx` — dev test route removed
+- Removed `react-router-dom` dependency (unused in Next.js App Router project)
+- Added error boundaries: `src/app/entry/error.tsx`, `src/app/reports/error.tsx`
+
+**Report loading skeleton (`src/app/reports/page.tsx`):**
+- Replaced spinner with 6-row animated skeleton (`animate-pulse`) matching table column count
+- Prevents layout shift during data load
+
+**Daily entry overwrite detection (`src/components/forms/DailyEntryForm.tsx`):**
+- Detects if an entry already exists for the selected date + outlet via `/api/all-reports`
+- Shows amber warning banner: "An entry already exists for this date"
+- Submit button disabled until user clicks "Yes, overwrite" confirmation button
+- `overwriteConfirmed` resets when date or outlet changes
+
+**Inline user editing (`src/components/admin/UsersList.tsx`):**
+- New `UsersList` client component with per-row pencil/trash icons
+- Pencil toggles an inline `UserForm` pre-filled with user data (role, outlet, name, active status)
+- `onSuccess`: closes inline form + `router.refresh()`
+- Delete disabled for admin role; loading state during delete
+- `src/app/admin/users/page.tsx` updated to use `UsersList` instead of static list
 
 ### 2026-04-03 — Auth UX, Settings Simplification & Registration Password Flow
 
@@ -453,22 +589,35 @@ npm run format       # Prettier format
 ## Pending / Next Steps
 
 - [ ] **Google OAuth:** Removed for now — re-add when Google Cloud credentials are available
-- [ ] **Email provider:** Replace Supabase built-in SMTP (2 emails/hr limit) with Resend — configure at Supabase Dashboard → Settings → Auth → SMTP (host: smtp.resend.com, port: 587, user: resend, pass: API key)
-- [ ] **Vercel redeploy:** Trigger new deployment to pick up all recent changes
+- [ ] **Brevo sender domain:** Replace `frpboy12@gmail.com` sender with a custom domain to pass SPF/DKIM/DMARC and avoid spam filtering
+- [ ] **Server-side push:** Implement VAPID key generation + push subscription endpoint + push from server (e.g. missed entry reminder cron) — currently only local notifications are possible
 - [ ] **Chart of Accounts UI:** Complete CRUD pages (schema done, UI partial)
 - [ ] **Advanced analytics:** Trend charts, month-over-month comparisons
 - [ ] **Email notifications:** Alert admin when daily entry is missed
-- [ ] **PWA:** Enhance manifest.json for offline-first capability
+
+---
+
+## Email (Brevo SMTP)
+
+- **Provider:** Brevo (formerly Sendinblue) — free tier, 300 emails/day
+- **SMTP host:** `smtp-relay.brevo.com`, port `587`, TLS
+- **Configured in:** Supabase Dashboard → Settings → Auth → SMTP
+- **SMTP login:** `a70a1b001@smtp-brevo.com` (Brevo SMTP username — NOT the sender address)
+- **Sender email:** `frpboy12@gmail.com` (verified in Brevo sender list)
+- **Handles:** Password reset emails, magic link emails
+- **Note:** Using Gmail as sender may hit DMARC checks — long-term fix is a custom domain
 
 ---
 
 ## Notes
 
-- All routes protected except `/login`, `/register`, `/auth/callback`
+- All routes protected except `/login`, `/register`, `/api/auth/callback`
 - Seed data: 30 days of dummy financial data for all 14 outlets (420 entries)
 - All monetary values: `NUMERIC(12,2)` — no floating-point errors
 - All dates/times: IST (UTC+5:30)
 - All currency: INR (₹) format
 - Server actions enforce outlet from session — managers cannot submit for other outlets
 - `SUPABASE_SERVICE_ROLE_KEY` is used ONLY in server actions, never exposed to client
-- `src/proxy.ts` handles session refresh + auth redirect (Next.js 16 proxy — matcher excludes all `_next/` paths)
+- `src/proxy.ts` handles session refresh + auth redirect (Next.js 16 proxy — matcher excludes all `_next/` and API paths)
+- PWA: manifest linked, service worker at `/sw.js`, install prompt via `beforeinstallprompt`
+- Push notifications: permission-gated, local notifications work immediately; server push requires VAPID setup

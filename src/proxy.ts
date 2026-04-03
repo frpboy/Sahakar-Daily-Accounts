@@ -1,12 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/register", "/api/auth/callback"];
+// Routes that don't require authentication
+const PUBLIC_PATHS = ["/login", "/register", "/api/auth/callback", "/update-password"];
+
+// Routes to redirect authenticated users away from (e.g. already logged in → dashboard)
+const AUTH_REDIRECT_PATHS = ["/login", "/register"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isPublic = PUBLIC_PATHS.some((path) => pathname.startsWith(path));
+  const isAuthRedirect = AUTH_REDIRECT_PATHS.some((path) => pathname.startsWith(path));
 
   let supabaseResponse = NextResponse.next({ request });
 
@@ -36,7 +41,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Authenticated user hitting login/register → send to dashboard
-  if (user && isPublic) {
+  if (user && isAuthRedirect) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
@@ -55,4 +60,3 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: ["/((?!api/|_next/|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };
-

@@ -79,18 +79,25 @@ export function PersonalProfile({
         </div>
 
         {!isGlobal && outlet && (
-          <div className="flex items-center justify-between p-6 bg-white border border-dashed border-gray-200">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 bg-gray-100 border border-gray-200 flex items-center justify-center">
-                <MapPin className="h-5 w-5 text-gray-400" />
+          <div className="p-6 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Your Assigned Outlet
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{outlet.name}</p>
+                {(outlet.type || outlet.code) && (
+                  <p className="text-sm text-gray-500 mt-0.5">
+                    {[outlet.type, outlet.code].filter(Boolean).join(" · ")}
+                  </p>
+                )}
               </div>
-              <div className="space-y-0.5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">Your Outlet</p>
-                <p className="text-xs font-black text-gray-900 uppercase italic underline decoration-emerald-500 decoration-2">{outlet.name}</p>
-                <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{outlet.type} // {outlet.code}</p>
+              <div className="h-12 w-12 bg-emerald-100 border border-emerald-200 rounded-lg flex items-center justify-center">
+                <MapPin className="h-6 w-6 text-emerald-600" />
               </div>
             </div>
-            <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest leading-none text-right">Contact admin to change outlet</p>
+            <p className="text-xs text-emerald-600 mt-3">Contact admin to change your outlet assignment</p>
           </div>
         )}
 

@@ -40,9 +40,10 @@ interface User {
 interface UsersListProps {
   users: User[];
   outlets: Array<{ id: string; name: string }>;
+  isAdmin?: boolean;
 }
 
-export function UsersList({ users, outlets }: UsersListProps) {
+export function UsersList({ users, outlets, isAdmin = false }: UsersListProps) {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
@@ -108,35 +109,37 @@ export function UsersList({ users, outlets }: UsersListProps) {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                        onClick={() => setEditingUserId(editingUserId === user.id ? null : user.id)}
-                      >
-                        {editingUserId === user.id
-                          ? <X className="h-4 w-4" />
-                          : <Pencil className="h-4 w-4" />
-                        }
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        disabled={user.role === "admin" || deletingId === user.id}
-                        onClick={() => handleDelete(user.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                          onClick={() => setEditingUserId(editingUserId === user.id ? null : user.id)}
+                        >
+                          {editingUserId === user.id
+                            ? <X className="h-4 w-4" />
+                            : <Pencil className="h-4 w-4" />
+                          }
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                          disabled={user.role === "admin" || deletingId === user.id}
+                          onClick={() => handleDelete(user.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* Inline edit form */}
-                {editingUserId === user.id && (
+                {/* Inline edit form — admin only */}
+                {isAdmin && editingUserId === user.id && (
                   <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider pt-4 pb-3">
                       Edit User

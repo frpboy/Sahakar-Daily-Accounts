@@ -1,12 +1,23 @@
 import { db } from "@/db";
-import { dailyAccounts } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { dailyAccounts, users } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format } from "date-fns";
 
 export default async function AdminOverviewPage() {
+  const supabase = await createClient();
+  const { data: { user: authUser } } = await supabase.auth.getUser();
+  if (!authUser) redirect("/login");
+
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, authUser.id)).limit(1);
+  if (!caller || (caller.role !== "admin" && caller.role !== "ho_accountant")) {
+    redirect("/dashboard");
+  }
+
   const reports = await db.query.dailyAccounts
     .findMany({
       orderBy: [desc(dailyAccounts.date)],

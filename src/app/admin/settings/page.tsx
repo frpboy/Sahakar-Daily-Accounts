@@ -2,12 +2,13 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { Container } from "@/components/ui/container";
-import { User, Lock, ArrowLeft } from "lucide-react";
+import { User, Lock, Bell, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { PersonalProfile, SecuritySettings } from "@/components/settings/SettingsPages";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
 
 type Role = "admin" | "ho_accountant" | "outlet_manager" | "outlet_accountant";
 
@@ -65,6 +66,7 @@ function SettingsContent() {
   const sidebarItems = [
     { id: "profile", label: "Profile", icon: <User className="h-4 w-4" /> },
     { id: "password", label: "Change Password", icon: <Lock className="h-4 w-4" /> },
+    { id: "notifications", label: "Notifications", icon: <Bell className="h-4 w-4" /> },
   ];
 
   const setActiveTab = (tab: string) => {
@@ -94,6 +96,8 @@ function SettingsContent() {
         );
       case "password":
         return <SecuritySettings onUpdatePassword={handleUpdatePassword} />;
+      case "notifications":
+        return <NotificationSettings />;
       default:
         return null;
     }

@@ -10,6 +10,7 @@ const geistMono = GeistMono;
 export const metadata: Metadata = {
   title: "Sahakar Daily Accounts",
   description: "Enterprise ERP for Daily Outlet Accounts",
+  manifest: "/manifest.json",
 };
 
 export const viewport: Viewport = {

@@ -74,6 +74,9 @@ export async function createUser(input: CreateUserInput) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return { success: false, error: "Unauthorized" };
 
+    const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!caller || caller.role !== "admin") return { success: false, error: "Only admins can create users" };
+
     const userId = nanoid();
     await db.insert(users).values({
       id: userId,
@@ -153,6 +156,9 @@ export async function updateUser(input: UpdateUserInput) {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return { success: false, error: "Unauthorized" };
 
+    const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!caller || caller.role !== "admin") return { success: false, error: "Only admins can update users" };
+
     await db
       .update(users)
       .set({
@@ -207,6 +213,9 @@ export async function deleteUser(id: string) {
     const supabase = await createClient();
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!caller || caller.role !== "admin") return { success: false, error: "Only admins can delete users" };
 
     await db.delete(users).where(eq(users.id, id));
 
