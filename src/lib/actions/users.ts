@@ -5,6 +5,8 @@ import { users, registrationRequests } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { nanoid } from "nanoid";
+import { createClient } from "@/lib/supabase/server";
+import { logAudit } from "@/lib/actions/audit";
 
 export async function getAllUsers() {
   try {
@@ -68,6 +70,10 @@ export async function createUser(input: CreateUserInput) {
       return { success: false, error: "User with this email already exists" };
     }
 
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
     const userId = nanoid();
     await db.insert(users).values({
       id: userId,
@@ -76,6 +82,21 @@ export async function createUser(input: CreateUserInput) {
       phone: input.phone || null,
       role: input.role,
       outletId: input.outletId || null,
+    });
+
+    await logAudit({
+      userId: authUser.id,
+      action: "create",
+      entityType: "user",
+      entityId: userId,
+      newData: {
+        id: userId,
+        name: input.name,
+        email: input.email,
+        phone: input.phone || null,
+        role: input.role,
+        outletId: input.outletId || null,
+      } as Record<string, unknown>,
     });
 
     revalidatePath("/admin/users");
@@ -128,6 +149,10 @@ export async function updateUser(input: UpdateUserInput) {
       return { success: false, error: "User with this email already exists" };
     }
 
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
     await db
       .update(users)
       .set({
@@ -140,6 +165,22 @@ export async function updateUser(input: UpdateUserInput) {
         updatedAt: new Date(),
       })
       .where(eq(users.id, input.id));
+
+    await logAudit({
+      userId: authUser.id,
+      action: "update",
+      entityType: "user",
+      entityId: input.id,
+      oldData: existingUser as Record<string, unknown>,
+      newData: {
+        name: input.name,
+        email: input.email,
+        phone: input.phone || null,
+        role: input.role,
+        outletId: input.outletId || null,
+        isActive: input.isActive,
+      } as Record<string, unknown>,
+    });
 
     revalidatePath("/admin/users");
     return { success: true, message: "User updated successfully" };
@@ -163,7 +204,19 @@ export async function deleteUser(id: string) {
       return { success: false, error: "Cannot delete admin user" };
     }
 
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
     await db.delete(users).where(eq(users.id, id));
+
+    await logAudit({
+      userId: authUser.id,
+      action: "delete",
+      entityType: "user",
+      entityId: id,
+      oldData: existingUser as Record<string, unknown>,
+    });
 
     revalidatePath("/admin/users");
     return { success: true, message: "User deleted successfully" };
@@ -193,6 +246,10 @@ export async function approveRequest(requestId: string, role: CreateUserInput["r
 
     if (!request) return { success: false, error: "Request not found" };
 
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
     // Create the user
     // We reuse logic from createUser or just call it directly if we could (but it's async)
     const userResult = await createUser({
@@ -211,6 +268,13 @@ export async function approveRequest(requestId: string, role: CreateUserInput["r
       .set({ status: "approved", updatedAt: new Date() })
       .where(eq(registrationRequests.id, requestId));
 
+    await logAudit({
+      userId: authUser.id,
+      action: "approve",
+      entityType: "registration_request",
+      entityId: requestId,
+    });
+
     revalidatePath("/admin/users");
     return { success: true, message: "Request approved and user created" };
   } catch (error) {
@@ -221,10 +285,21 @@ export async function approveRequest(requestId: string, role: CreateUserInput["r
 
 export async function rejectRequest(requestId: string) {
   try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
     await db
       .update(registrationRequests)
       .set({ status: "rejected", updatedAt: new Date() })
       .where(eq(registrationRequests.id, requestId));
+
+    await logAudit({
+      userId: authUser.id,
+      action: "reject",
+      entityType: "registration_request",
+      entityId: requestId,
+    });
 
     revalidatePath("/admin/users");
     return { success: true, message: "Request rejected" };
