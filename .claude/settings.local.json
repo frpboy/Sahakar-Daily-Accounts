@@ -5,7 +5,10 @@
       "Bash(npm uninstall:*)",
       "Bash(node -e \"require\\('drizzle-orm/postgres-js'\\); require\\('postgres'\\); console.log\\('Imports OK'\\)\")",
       "Bash(ls \"e:/K4NN4N/Sahakar-Daily-Accounts/.env\"*)",
-      "mcp__plugin_playwright_playwright__browser_console_messages"
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "Bash(find \"e:/K4NN4N/Sahakar-Daily-Accounts/src/app/api\" -name \"route.ts\" -exec wc -l {} \\\\;)",
+      "Bash(xargs wc:*)",
+      "Bash(npx supabase:*)"
     ]
   }
 }

@@ -54,6 +54,8 @@ export function DailyEntryForm({
   const [isLoading, setIsLoading] = useState(false);
   const [paymentTotal, setPaymentTotal] = useState(0);
   const [isTally, setIsTally] = useState<boolean | null>(null);
+  const [entryExists, setEntryExists] = useState(false);
+  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
 
   const form = useForm<DailyEntryInput>({
     resolver: zodResolver(dailyEntrySchema),
@@ -75,6 +77,26 @@ export function DailyEntryForm({
   const upi = form.watch("saleUpi");
   const credit = form.watch("saleCredit");
   const totalSalesAmount = form.watch("totalSalesAmount");
+  const watchedDate = form.watch("date");
+  const watchedOutletId = form.watch("outletId");
+
+  // Check if an entry already exists for the selected date + outlet
+  useEffect(() => {
+    const outletId = watchedOutletId || defaultOutletId;
+    if (!watchedDate || !outletId) return;
+
+    const dateStr =
+      watchedDate instanceof Date
+        ? watchedDate.toISOString().split("T")[0]
+        : "";
+    if (!dateStr) return;
+
+    setOverwriteConfirmed(false);
+    fetch(`/api/all-reports?outletId=${outletId}&startDate=${dateStr}&endDate=${dateStr}`)
+      .then((r) => r.json())
+      .then((rows) => setEntryExists(Array.isArray(rows) && rows.length > 0))
+      .catch(() => setEntryExists(false));
+  }, [watchedDate, watchedOutletId, defaultOutletId]);
 
   useEffect(() => {
     const total = calculateTotalSales(cash ?? 0, upi ?? 0, credit ?? 0);
@@ -96,6 +118,7 @@ export function DailyEntryForm({
   }, [cash, upi, credit, totalSalesAmount]);
 
   async function onSubmit(values: DailyEntryInput) {
+    if (entryExists && !overwriteConfirmed) return;
     setIsLoading(true);
     try {
       const result = await submitDailyAccount(values);
@@ -115,6 +138,8 @@ export function DailyEntryForm({
           closingStock: 0,
         });
         setIsTally(null);
+        setEntryExists(false);
+        setOverwriteConfirmed(false);
       } else {
         toast.error(result.error || "Failed to save entry");
       }
@@ -129,8 +154,8 @@ export function DailyEntryForm({
     <Card className="border-gray-200 shadow-sm">
       <CardHeader className="border-b pb-4 mb-4">
         <CardTitle className="text-xl font-bold">Daily Entry Form</CardTitle>
-        <CardDescription className="text-gray-700">
-          Enter your daily outlet account details with high density accuracy.
+        <CardDescription className="text-gray-500">
+          Enter the daily sales and expense figures for your outlet.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -556,11 +581,27 @@ export function DailyEntryForm({
               </div>
             </div>
 
-            {/* Submit Button - Positioned Bottom Right */}
+            {/* Overwrite warning */}
+            {entryExists && !overwriteConfirmed && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 flex items-start justify-between gap-4">
+                <p className="text-sm text-amber-800 font-medium">
+                  An entry already exists for this date. Submitting will overwrite it.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setOverwriteConfirmed(true)}
+                  className="shrink-0 text-sm font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
+                >
+                  Yes, overwrite
+                </button>
+              </div>
+            )}
+
+            {/* Submit Button */}
             <div className="flex justify-end pt-6 border-t border-gray-100">
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || (entryExists && !overwriteConfirmed)}
                 size="lg"
                 className={cn(
                   "min-w-[200px] rounded-sm font-bold uppercase tracking-widest transition-all",
@@ -570,7 +611,7 @@ export function DailyEntryForm({
                 )}
               >
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLoading ? "Saving Entry..." : "Submit to HO"}
+                {isLoading ? "Saving..." : "Submit"}
               </Button>
             </div>
           </form>

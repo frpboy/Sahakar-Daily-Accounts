@@ -5,7 +5,7 @@
 **Project Name:** Sahakar Daily Accounts (DOAMS — Daily Outlet Account Management System)
 **Tech Stack:** Next.js 16.2.2, PostgreSQL (Supabase), Drizzle ORM, Tailwind CSS, shadcn/ui, Supabase Auth
 **Date Started:** 2026-04-01
-**Last Updated:** 2026-04-02
+**Last Updated:** 2026-04-03
 **Production URL:** https://doams.vercel.app
 
 ---
@@ -259,7 +259,9 @@ button, input, select, card, form, label, table, container, badge, switch, avata
 
 | File                                    | Purpose                              |
 | --------------------------------------- | ------------------------------------ |
-| `middleware.ts`                         | Supabase session refresh (root)      |
+| `src/middleware.ts`                     | Route protection + session refresh (root) |
+| `src/lib/actions/audit.ts`             | `logAudit()` helper → writes to `audit_logs` table |
+| `src/types/supabase.ts`                | Generated Supabase TypeScript types  |
 | `src/lib/supabase/client.ts`            | Browser Supabase client              |
 | `src/lib/supabase/server.ts`            | Server Supabase client (async)       |
 | `src/lib/supabase/middleware.ts`        | updateSession() helper               |
@@ -333,6 +335,77 @@ npm run format       # Prettier format
 
 ## Migration History
 
+### 2026-04-03 — Auth UX, Settings Simplification & Registration Password Flow
+
+**Login page (`src/app/login/page.tsx`):**
+- Removed Google OAuth sign-in button (no credentials configured)
+- Added Forgot Password mode — "Forgot password?" link next to password field; sends reset link via `supabase.auth.resetPasswordForEmail`, redirects to `/settings` after reset
+- Description changed from "Enterprise Grade Daily Account Management" to "Daily outlet accounts — Sahakar Group"
+- Loading text changed from "Authenticating..." to "Signing in..."
+- Commit: `a2761f4`
+
+**Registration flow (password support):**
+- `src/db/schema.ts`: added `password` column to `registration_requests` table (pushed via `db:push`)
+- `src/app/register/page.tsx`: added password field (`required`, `minLength=6`); footer simplified to "Powered by Sahakar Group IT"
+- `src/app/api/registration-requests/route.ts`: forwards `password` from request body to action
+- `src/lib/actions/registrations.ts`:
+  - `submitRegistrationRequest` now accepts and stores `password`
+  - `approveRegistrationRequest` replaced `inviteUserByEmail` with `admin.createUser({ email, password, email_confirm: true })` — user can log in immediately after admin approval, no invite email needed
+  - Password is cleared from `registration_requests` table after approval
+- Commit: `98fd2a0`
+
+**Settings page cleanup (`src/app/admin/settings/page.tsx`):**
+- Stripped to 2 sections only: **Profile** (name/phone) and **Change Password**
+- Removed: Sessions, Appearance, User Management, Outlets, Financial Year, Reporting Rules, Audit Trail, Reminders, Verification Rules, Default Values, Local Sync, Danger Zone
+- Title changed from "Configuration Portal" to "Settings"; removed "System Runtime 2.4.0" tag, background watermark, "Secure Sync Active" dot
+- Removed all unused state and fetch queries
+- Commit: `88168a3`
+
+**Settings labels (`src/components/settings/SettingsPages.tsx`):**
+- All jargon labels replaced with plain English: "Identity Management Hub" → "Your Profile", "Mobile Terminal Pointer" → "Phone Number", "Master Authentication Email" → "Email Address", "Push Identity Changes" → "Save Changes", etc.
+- Removed non-functional "Emergency Terminal Lockdown" section from SecuritySettings
+- Toast error "PASSWORD MISMATCH" → "Passwords do not match"
+- Commit: `88168a3`
+
+**Supabase TypeScript types (`src/types/supabase.ts`):**
+- Re-generated from live database using `npx supabase gen types typescript --project-id grdeedwkzqyfxgfeskdr` after logging in with project owner account
+- Replaces hand-written placeholder — now includes `password` column on `registration_requests` and all other live schema changes
+
+### 2026-04-03 — Security, Auth & PDF Hardening
+
+**Root middleware (`src/middleware.ts`):**
+- Replaced missing root middleware — previously there was no request-level route guard
+- `src/middleware.ts` now imports `updateSession()` from `src/lib/supabase/middleware.ts`
+- Unauthenticated requests to protected routes → redirect `/login`
+- Authenticated users accessing `/login` or `/register` → redirect `/dashboard`
+- Matcher excludes `_next/static`, `_next/image`, `favicon.ico`, and all image extensions
+- Commit: `8714db9`
+
+**Supabase TypeScript types (`src/types/supabase.ts`):**
+- Generated from live Supabase project `grdeedwkzqyfxgfeskdr` using Supabase CLI
+- File was previously empty (0 bytes); now contains full `Database`, `Tables`, `Enums` types
+
+**Entry page permission fix (`src/app/entry/page.tsx`):**
+- Removed hardcoded `const canSeeAllOutlets = true` that gave every user admin-level outlet access
+- Converted from client component to server component
+- Now reads real Supabase user → DB user → derives `canSeeAllOutlets` via `canAccessAllOutlets(role)` from `src/lib/permissions.ts`
+- Outlet-level users (outlet_manager, outlet_accountant) see only their assigned outlet; no outlet selector abuse possible
+- Outlet-level users with no outletId get a clear error message
+
+**Audit logging (`src/lib/actions/audit.ts` + wired into `accounts.ts` and `users.ts`):**
+- New `logAudit()` helper writes to `audit_logs` table (schema was already in place, writes were missing)
+- Captures: userId, userName, action, entityType, entityId, oldData (JSONB), newData (JSONB)
+- Never throws — failures are logged to console only, never break the calling action
+- Wired into `submitDailyAccount`: logs `create` or `update` (detects by pre-query before upsert)
+- Wired into `createUser`, `updateUser`, `deleteUser`, `approveRequest`, `rejectRequest`
+
+**Production PDF export (`src/lib/export.ts`):**
+- Replaced browser `window.open()` + `window.print()` with `jspdf` + `jspdf-autotable`
+- Dynamic import (`await import(...)`) prevents SSR issues
+- Reads `<table>` element from DOM via `elementId`, produces styled A4 landscape PDF
+- Downloads as `<filename>.pdf` directly — no print dialog
+- Installed: `jspdf`, `jspdf-autotable`
+
 ### 2026-04-02 — Neon → Supabase + Kinde → Supabase Auth
 
 **Database migration:**
@@ -379,9 +452,9 @@ npm run format       # Prettier format
 
 ## Pending / Next Steps
 
-- [ ] **Google OAuth:** Enable in Supabase Dashboard → Auth → Providers → Google (needs Google Cloud credentials)
-- [ ] **Vercel redeploy:** Trigger new deployment to pick up proxy matcher fix
-- [ ] **Admin Users page:** Add Pending Requests UI tab for approving registration requests
+- [ ] **Google OAuth:** Removed for now — re-add when Google Cloud credentials are available
+- [ ] **Email provider:** Replace Supabase built-in SMTP (2 emails/hr limit) with Resend — configure at Supabase Dashboard → Settings → Auth → SMTP (host: smtp.resend.com, port: 587, user: resend, pass: API key)
+- [ ] **Vercel redeploy:** Trigger new deployment to pick up all recent changes
 - [ ] **Chart of Accounts UI:** Complete CRUD pages (schema done, UI partial)
 - [ ] **Advanced analytics:** Trend charts, month-over-month comparisons
 - [ ] **Email notifications:** Alert admin when daily entry is missed

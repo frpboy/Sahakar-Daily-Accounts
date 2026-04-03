@@ -286,11 +286,15 @@ export default function ReportsPage() {
                 </thead>
                 <tbody className="divide-y">
                   {isDataLoading ? (
-                    <tr>
-                      <td colSpan={8} className="px-4 py-8 text-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto" />
-                      </td>
-                    </tr>
+                    Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        {Array.from({ length: 8 }).map((_, j) => (
+                          <td key={j} className="px-4 py-3">
+                            <div className="h-4 bg-gray-100 rounded" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))
                   ) : data.length === 0 ? (
                     <tr>
                       <td
