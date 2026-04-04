@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "@tanstack/react-table": "^8.17.3",
     "@tanstack/table-core": "^8.17.3",
+    "boneyard-js": "^1.6.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "date-fns": "^3.3.1",

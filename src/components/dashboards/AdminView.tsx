@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { exportToCSV, exportToPDF } from "@/lib/export";
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { subDays } from "date-fns";
+import { Skeleton } from "boneyard-js/react";
 
 interface DashboardStats {
   totalOutlets: number;
@@ -132,38 +133,84 @@ export default function AdminView() {
       </div>
 
       {/* Main KPIs */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <KPIItem
-          title="Total Outlets"
-          value={stats.totalOutlets.toString()}
-          icon={<Building2 className="h-4 w-4 text-gray-900" />}
-          bg="bg-gray-100"
-          sub="Active Units"
-        />
-        <KPIItem
-          title="Revenue"
-          value={formatCurrency(stats.totalSales)}
-          icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
-          bg="bg-emerald-50"
-          sub="Selected Range"
-          isSuccess
-        />
-        <KPIItem
-          title="Expenses"
-          value={formatCurrency(stats.totalExpenses)}
-          icon={<IndianRupee className="h-4 w-4 text-red-500" />}
-          bg="bg-red-50"
-          sub="Operational Costs"
-          isDanger
-        />
-        <KPIItem
-          title="Entries"
-          value={stats.todayEntries.toString()}
-          icon={<Activity className="h-4 w-4 text-blue-500" />}
-          bg="bg-blue-50"
-          sub="Today's Submits"
-        />
-      </div>
+      <Skeleton
+        name="dashboard-kpis"
+        loading={loading}
+        fallback={
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="border border-gray-200 rounded-none bg-white p-6 animate-pulse">
+                <div className="flex flex-col gap-5">
+                  <div className="flex items-center justify-between">
+                    <div className="h-3 w-24 bg-gray-100 rounded" />
+                    <div className="h-8 w-8 bg-gray-100 rounded-none" />
+                  </div>
+                  <div>
+                    <div className="h-7 w-32 bg-gray-100 rounded" />
+                    <div className="h-2 w-20 bg-gray-100 rounded mt-2" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        }
+        fixture={
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+            {[
+              { title: "Total Outlets", value: "14", sub: "Active Units" },
+              { title: "Revenue", value: "₹4,85,200.00", sub: "Selected Range" },
+              { title: "Expenses", value: "₹1,24,600.00", sub: "Operational Costs" },
+              { title: "Entries", value: "12", sub: "Today's Submits" },
+            ].map((kpi) => (
+              <div key={kpi.title} className="border border-gray-200 shadow-none rounded-none bg-white p-6">
+                <div className="flex flex-col gap-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] leading-none">{kpi.title}</p>
+                    <div className="p-2 bg-gray-100 rounded-none w-8 h-8" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-black tracking-tighter font-mono text-gray-900">{kpi.value}</p>
+                    <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mt-1.5">{kpi.sub}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        }
+      >
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+          <KPIItem
+            title="Total Outlets"
+            value={stats.totalOutlets.toString()}
+            icon={<Building2 className="h-4 w-4 text-gray-900" />}
+            bg="bg-gray-100"
+            sub="Active Units"
+          />
+          <KPIItem
+            title="Revenue"
+            value={formatCurrency(stats.totalSales)}
+            icon={<TrendingUp className="h-4 w-4 text-emerald-500" />}
+            bg="bg-emerald-50"
+            sub="Selected Range"
+            isSuccess
+          />
+          <KPIItem
+            title="Expenses"
+            value={formatCurrency(stats.totalExpenses)}
+            icon={<IndianRupee className="h-4 w-4 text-red-500" />}
+            bg="bg-red-50"
+            sub="Operational Costs"
+            isDanger
+          />
+          <KPIItem
+            title="Entries"
+            value={stats.todayEntries.toString()}
+            icon={<Activity className="h-4 w-4 text-blue-500" />}
+            bg="bg-blue-50"
+            sub="Today's Submits"
+          />
+        </div>
+      </Skeleton>
 
       {/* Grid of Outlets (Submission Status) */}
       <Card className="overflow-hidden">
@@ -195,39 +242,77 @@ export default function AdminView() {
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-6" id="submission-tracker-table">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {stats.outletsStatus.map((outlet) => (
-              <Link key={outlet.id} href={`/outlets/${outlet.id}`}>
-                <div className="flex flex-col gap-2 p-3 border border-gray-100 rounded-none bg-white hover:border-gray-900 transition-all group cursor-pointer h-full">
-                  <div className="flex justify-between items-center">
-                    <div
-                      className={`h-1.5 w-1.5 rounded-none ${outlet.isSubmitted ? "bg-emerald-500" : "bg-red-500"}`}
-                    />
-                    <p className="text-[9px] font-black text-gray-400 group-hover:text-gray-900 transition-colors uppercase tracking-widest">
-                      {outlet.code}
-                    </p>
+        <Skeleton
+          name="dashboard-outlets"
+          loading={loading}
+          fallback={
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <div key={i} className="flex flex-col gap-2 p-3 border border-gray-100 rounded-none bg-white h-20 animate-pulse">
+                    <div className="h-2 w-12 bg-gray-100 rounded" />
+                    <div className="h-3 w-20 bg-gray-100 rounded" />
+                    <div className="h-2 w-10 bg-gray-100 rounded mt-auto" />
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-[11px] leading-tight uppercase tracking-wide truncate">
-                      {outlet.name}
-                    </p>
-                  </div>
-                  <div className="pt-2 mt-auto border-t border-gray-50 text-[9px] font-black text-gray-300 group-hover:text-gray-900 uppercase tracking-widest truncate transition-colors">
-                    {outlet.isSubmitted
-                      ? `@ ${new Date(outlet.submittedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`
-                      : "PENDING"}
-                  </div>
-                </div>
-              </Link>
-            ))}
-            {stats.outletsStatus.length === 0 && !loading && (
-              <div className="col-span-full py-12 text-center text-gray-300 text-[10px] uppercase tracking-[0.3em] font-black">
-                No operational reports found
+                ))}
               </div>
-            )}
-          </div>
-        </CardContent>
+            </div>
+          }
+          fixture={
+            <div className="p-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <div key={i} className="flex flex-col gap-2 p-3 border border-gray-100 rounded-none bg-white h-full">
+                    <div className="flex justify-between items-center">
+                      <div className="h-1.5 w-1.5 rounded-none bg-emerald-500" />
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">OT{String(i + 1).padStart(2, "0")}</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-[11px] leading-tight uppercase tracking-wide truncate">Outlet Name</p>
+                    </div>
+                    <div className="pt-2 mt-auto border-t border-gray-50 text-[9px] font-black text-gray-300 uppercase tracking-widest">
+                      @ 09:30
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          }
+        >
+          <CardContent className="p-6" id="submission-tracker-table">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {stats.outletsStatus.map((outlet) => (
+                <Link key={outlet.id} href={`/outlets/${outlet.id}`}>
+                  <div className="flex flex-col gap-2 p-3 border border-gray-100 rounded-none bg-white hover:border-gray-900 transition-all group cursor-pointer h-full">
+                    <div className="flex justify-between items-center">
+                      <div
+                        className={`h-1.5 w-1.5 rounded-none ${outlet.isSubmitted ? "bg-emerald-500" : "bg-red-500"}`}
+                      />
+                      <p className="text-[9px] font-black text-gray-400 group-hover:text-gray-900 transition-colors uppercase tracking-widest">
+                        {outlet.code}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-gray-900 text-[11px] leading-tight uppercase tracking-wide truncate">
+                        {outlet.name}
+                      </p>
+                    </div>
+                    <div className="pt-2 mt-auto border-t border-gray-50 text-[9px] font-black text-gray-300 group-hover:text-gray-900 uppercase tracking-widest truncate transition-colors">
+                      {outlet.isSubmitted
+                        ? `@ ${new Date(outlet.submittedAt!).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}`
+                        : "PENDING"}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {stats.outletsStatus.length === 0 && !loading && (
+                <div className="col-span-full py-12 text-center text-gray-300 text-[10px] uppercase tracking-[0.3em] font-black">
+                  No operational reports found
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Skeleton>
       </Card>
     </Container>
   );

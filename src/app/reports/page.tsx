@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "boneyard-js/react";
 
 interface ReportEntry {
   id: string;
@@ -253,40 +254,14 @@ export default function ReportsPage() {
           <CardHeader>
             <CardTitle>All Entries ({data.length})</CardTitle>
           </CardHeader>
-          <CardContent className="p-0" id="reports-table-container">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b bg-gray-50">
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Date
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Outlet
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">
-                      Cash
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">
-                      UPI
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">
-                      Credit
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">
-                      Total
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">
-                      Expenses
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">
-                      Profit
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {isDataLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton
+            name="reports-table"
+            loading={isDataLoading}
+            fallback={
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <tbody className="divide-y">
+                    {Array.from({ length: 6 }).map((_, i) => (
                       <tr key={i} className="animate-pulse">
                         {Array.from({ length: 8 }).map((_, j) => (
                           <td key={j} className="px-4 py-3">
@@ -294,64 +269,86 @@ export default function ReportsPage() {
                           </td>
                         ))}
                       </tr>
-                    ))
-                  ) : data.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={8}
-                        className="px-4 py-8 text-center text-gray-500"
-                      >
-                        No entries found
-                      </td>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+            fixture={
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      {["Date", "Outlet", "Cash", "UPI", "Credit", "Total", "Expenses", "Profit"].map((h) => (
+                        <th key={h} className="px-4 py-3 text-left text-sm font-semibold">{h}</th>
+                      ))}
                     </tr>
-                  ) : (
-                    data.map((row) => {
-                      const totalSales = calculateTotalSales(
-                        row.saleCash,
-                        row.saleUpi,
-                        row.saleCredit
-                      );
-                      const profit = calculateProfit(
-                        totalSales,
-                        row.expenses,
-                        row.purchase
-                      );
-                      return (
-                        <tr key={row.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm">
-                            {format(new Date(row.date), "dd MMM yyyy")}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-medium">
-                            {row.outletName}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono">
-                            {formatCurrency(row.saleCash)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono">
-                            {formatCurrency(row.saleUpi)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono">
-                            {formatCurrency(row.saleCredit)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">
-                            {formatCurrency(totalSales)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono text-red-600">
-                            {formatCurrency(row.expenses)}
-                          </td>
-                          <td
-                            className={`px-4 py-3 text-right text-sm font-bold font-mono ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
-                          >
-                            {formatCurrency(profit)}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
+                  </thead>
+                  <tbody className="divide-y">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <tr key={i}>
+                        <td className="px-4 py-3 text-sm">01 Jan 2025</td>
+                        <td className="px-4 py-3 text-sm font-medium">Sahakar Pharmacy</td>
+                        <td className="px-4 py-3 text-right text-sm font-mono">₹12,500.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-mono">₹8,200.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-mono">₹3,000.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">₹23,700.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-mono text-red-600">₹4,500.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">₹19,200.00</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            }
+          >
+            <CardContent className="p-0" id="reports-table-container">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Date</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Outlet</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold">Cash</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold">UPI</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold">Credit</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold">Total</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold">Expenses</th>
+                      <th className="px-4 py-3 text-right text-sm font-semibold">Profit</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {data.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                          No entries found
+                        </td>
+                      </tr>
+                    ) : (
+                      data.map((row) => {
+                        const totalSales = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
+                        const profit = calculateProfit(totalSales, row.expenses, row.purchase);
+                        return (
+                          <tr key={row.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">{format(new Date(row.date), "dd MMM yyyy")}</td>
+                            <td className="px-4 py-3 text-sm font-medium">{row.outletName}</td>
+                            <td className="px-4 py-3 text-right text-sm font-mono">{formatCurrency(row.saleCash)}</td>
+                            <td className="px-4 py-3 text-right text-sm font-mono">{formatCurrency(row.saleUpi)}</td>
+                            <td className="px-4 py-3 text-right text-sm font-mono">{formatCurrency(row.saleCredit)}</td>
+                            <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">{formatCurrency(totalSales)}</td>
+                            <td className="px-4 py-3 text-right text-sm font-mono text-red-600">{formatCurrency(row.expenses)}</td>
+                            <td className={`px-4 py-3 text-right text-sm font-bold font-mono ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                              {formatCurrency(profit)}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Skeleton>
         </Card>
       </Container>
   );

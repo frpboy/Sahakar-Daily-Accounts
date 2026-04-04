@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Toaster } from "sonner";
 import { TopNav } from "./TopNav";
 import { PWAPrompt } from "./PWAPrompt";
+import "@/bones/registry";
 
 export function ClientLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
