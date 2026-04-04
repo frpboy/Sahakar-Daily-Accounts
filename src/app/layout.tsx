@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { ClientLayout } from "@/components/shared/ClientLayout";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 const geistSans = GeistSans;
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className={`${geistSans.className} antialiased`}>
         <ClientLayout>{children}</ClientLayout>
       </body>
+      <GoogleAnalytics gaId="G-PS3S7ERL8E" />
     </html>
   );
 }
