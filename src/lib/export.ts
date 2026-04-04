@@ -42,13 +42,31 @@ export async function exportToPDF(elementId: string, filename: string) {
     return;
   }
 
+  // Extract headers
+  const headers: string[] = [];
+  table.querySelectorAll("thead th").forEach((th) => {
+    headers.push(th.textContent?.trim() ?? "");
+  });
+
+  // Extract rows — replace ₹ with Rs. because jsPDF's built-in Helvetica
+  // font does not include the Rupee glyph (U+20B9) and renders it as "1"
+  const rows: string[][] = [];
+  table.querySelectorAll("tbody tr").forEach((tr) => {
+    const row: string[] = [];
+    tr.querySelectorAll("td").forEach((td) => {
+      row.push((td.textContent?.trim() ?? "").replace(/₹/g, "Rs."));
+    });
+    if (row.length > 0) rows.push(row);
+  });
+
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
   doc.setFontSize(14);
   doc.text(filename, 14, 15);
 
   autoTable(doc, {
-    html: table,
+    head: [headers],
+    body: rows,
     startY: 22,
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [41, 128, 185], textColor: 255, fontStyle: "bold" },
