@@ -1,33 +1,34 @@
-This specification defines the "Brain" of your application. It handles the bridge between the user's browser and your **Neon** database, ensuring that no "bad data" (like negative sales or missing dates) ever gets saved.
+# Server Actions & Validation Specification — DOAMS
+
+## Pattern
+
+All mutations use Next.js Server Actions (`"use server"`). No separate API routes for form submissions. The standard flow:
+
+1. Authenticate caller via Supabase
+2. Check caller's role from DB
+3. Validate input with Zod
+4. Perform DB operation via Drizzle
+5. Call `logAudit()`
+6. Call `revalidatePath()` if needed
+7. Return `{ success: true }` or `{ success: false, error: string }`
 
 ---
 
-### 1. Data Validation Schema (Zod)
-We use **Zod** to define exactly what a "Daily Entry" looks like. This schema runs both on the client (for instant feedback) and the server (for security).
+## Zod Validation Schema (`src/lib/validations/entry.ts`)
 
 ```typescript
-// src/lib/validations/entry.ts
 import { z } from "zod";
 
 export const dailyEntrySchema = z.object({
-  date: z.coerce.date().max(new Date(), { message: "Cannot enter data for future dates" }),
+  date: z.string(),                                          // DATE string (YYYY-MM-DD)
   outletId: z.string().uuid(),
-  
-  // Sales (Coerce converts string inputs from the form to numbers)
-  saleCash: z.coerce.number().min(0, "Cash cannot be negative").default(0),
-  saleUpi: z.coerce.number().min(0, "UPI cannot be negative").default(0),
-  saleCredit: z.coerce.number().min(0, "Credit cannot be negative").default(0),
-  
-  // Operations
+  saleCash: z.coerce.number().min(0).default(0),
+  saleUpi: z.coerce.number().min(0).default(0),
+  saleCredit: z.coerce.number().min(0).default(0),
+  saleReturn: z.coerce.number().min(0).default(0),
   expenses: z.coerce.number().min(0).default(0),
   purchase: z.coerce.number().min(0).default(0),
   closingStock: z.coerce.number().min(0).default(0),
-}).refine((data) => {
-  // Logic Check: Total Sale should ideally be > 0 if there are operations
-  return (data.saleCash + data.saleUpi + data.saleCredit) >= 0;
-}, {
-  message: "Invalid sales totals",
-  path: ["saleCash"], 
 });
 
 export type DailyEntryInput = z.infer<typeof dailyEntrySchema>;
@@ -35,112 +36,141 @@ export type DailyEntryInput = z.infer<typeof dailyEntrySchema>;
 
 ---
 
-### 2. The Server Action (`submitDailyAccount`)
-This is the function that handles the database write. It incorporates the **RBAC logic** we discussed earlier.
+## `submitDailyAccount` (`src/lib/actions/accounts.ts`)
 
 ```typescript
-// src/lib/actions/accounts.ts
-"use server"
-
-import { db } from "@/db";
-import { dailyAccounts } from "@/db/schema";
-import { dailyEntrySchema } from "@/lib/validations/entry";
-import { getSessionContext } from "@/lib/auth-utils";
-import { revalidatePath } from "next/cache";
+"use server";
 
 export async function submitDailyAccount(rawData: unknown) {
-  try {
-    // 1. Authenticate & Authorize
-    const { userId, outletId, isAdmin } = await getSessionContext();
+  // 1. Auth
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
 
-    // 2. Validate Data
-    const validatedData = dailyEntrySchema.parse(rawData);
+  // 2. Get DB user for role + outletId
+  const [dbUser] = await db.select().from(users).where(eq(users.id, user.id)).limit(1);
+  if (!dbUser) return { success: false, error: "User not found" };
 
-    // 3. Security Enforcement: Force the outletId if the user is a manager
-    const targetOutletId = isAdmin ? validatedData.outletId : outletId;
-    
-    if (!targetOutletId) {
-      return { success: false, error: "No outlet assigned to user." };
-    }
+  // 3. Validate
+  const result = dailyEntrySchema.safeParse(rawData);
+  if (!result.success) return { success: false, error: "Invalid data" };
+  const data = result.data;
 
-    // 4. Database Insert (Upsert logic to prevent duplicates)
-    await db.insert(dailyAccounts).values({
-      date: validatedData.date.toISOString().split('T')[0], // Format for Postgres DATE
-      outletId: targetOutletId,
-      saleCash: validatedData.saleCash.toString(), // Drizzle numeric uses strings to maintain precision
-      saleUpi: validatedData.saleUpi.toString(),
-      saleCredit: validatedData.saleCredit.toString(),
-      expenses: validatedData.expenses.toString(),
-      purchase: validatedData.purchase.toString(),
-      closingStock: validatedData.closingStock.toString(),
-      createdBy: userId,
-    }).onConflictDoUpdate({
-      target: [dailyAccounts.date, dailyAccounts.outletId],
-      set: {
-        saleCash: validatedData.saleCash.toString(),
-        saleUpi: validatedData.saleUpi.toString(),
-        saleCredit: validatedData.saleCredit.toString(),
-        expenses: validatedData.expenses.toString(),
-        purchase: validatedData.purchase.toString(),
-        closingStock: validatedData.closingStock.toString(),
-        updatedAt: new Date(),
-      }
+  // 4. Scope outlet — outlet users cannot submit for other outlets
+  const isGlobal = canAccessAllOutlets(dbUser.role!);
+  const targetOutletId = isGlobal ? data.outletId : dbUser.outletId!;
+
+  // 5. Detect existing for audit log
+  const existing = await db.select().from(dailyAccounts)
+    .where(and(eq(dailyAccounts.outletId, targetOutletId), eq(dailyAccounts.date, data.date)))
+    .limit(1);
+  const isUpdate = existing.length > 0;
+
+  // 6. Upsert
+  await db.insert(dailyAccounts).values({ ...data, outletId: targetOutletId, createdBy: user.id })
+    .onConflictDoUpdate({
+      target: [dailyAccounts.outletId, dailyAccounts.date],
+      set: { ...data, updatedAt: new Date() },
     });
 
-    // 5. Clear Cache so the UI updates
-    revalidatePath("/reports");
-    revalidatePath("/entry");
+  // 7. Audit
+  await logAudit({
+    userId: user.id,
+    action: isUpdate ? "update" : "create",
+    entityType: "daily_account",
+    entityId: `${targetOutletId}:${data.date}`,
+    oldData: isUpdate ? existing[0] as Record<string, unknown> : undefined,
+    newData: data as unknown as Record<string, unknown>,
+  });
 
-    return { success: true, message: "Entry saved successfully!" };
+  revalidatePath("/reports");
+  revalidatePath("/entry");
+  return { success: true, message: isUpdate ? "Entry updated" : "Entry saved" };
+}
+```
 
-  } catch (error: any) {
-    console.error("Submission Error:", error);
-    
-    if (error.name === "ZodError") {
-      return { success: false, error: "Invalid data submitted. Please check all fields." };
-    }
-    
-    return { success: false, error: "Database error. Please try again later." };
+**Key decisions:**
+- `onConflictDoUpdate` — one row per outlet per day; re-submission updates rather than errors
+- Numeric fields stored as strings by Drizzle for `NUMERIC` precision — never float
+- `outletId` from session for outlet users — form value ignored (prevents ID spoofing)
+- Audit log captures old snapshot before overwrite
+
+---
+
+## `createUser` / `updateUser` / `deleteUser` (`src/lib/actions/users.ts`)
+
+All three require `admin` role:
+
+```typescript
+const [caller] = await db.select({ role: users.role })
+  .from(users).where(eq(users.id, authUser.id)).limit(1);
+if (!caller || caller.role !== "admin")
+  return { success: false, error: "Only admins can perform this action" };
+```
+
+---
+
+## `approveRegistrationRequest` (`src/lib/actions/registrations.ts`)
+
+Admin only. Uses Supabase Admin API to create the auth user with the password the registrant set:
+
+```typescript
+const adminSupabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const { data: createdUser } = await adminSupabase.auth.admin.createUser({
+  email: request.email,
+  password: request.password ?? undefined,
+  email_confirm: true,
+  user_metadata: { name: request.name },
+});
+
+// Insert into users table with Supabase UUID
+await db.insert(users).values({
+  id: createdUser.user.id,  // must match Supabase Auth UUID
+  name: request.name,
+  email: request.email,
+  role: role,
+  outletId: outletId ?? null,
+  isActive: "true",
+});
+
+// Clear stored password
+await db.update(registrationRequests).set({ password: null })
+  .where(eq(registrationRequests.id, requestId));
+```
+
+---
+
+## `logAudit` (`src/lib/actions/audit.ts`)
+
+```typescript
+export async function logAudit({
+  userId, userName, action, entityType, entityId, oldData, newData,
+}: AuditParams): Promise<void> {
+  try {
+    await db.insert(auditLogs).values({
+      userId, userName, action, entityType, entityId, oldData, newData,
+    });
+  } catch (err) {
+    console.error("[audit] Failed:", err);
+    // Never throws — audit failure must not break the calling action
   }
 }
 ```
 
 ---
 
-### 3. Key Technical Decisions Explained
+## Frontend Usage
 
-#### A. The "Upsert" Strategy (`onConflictDoUpdate`)
-We enforce one row per outlet per day in the database. 
-*   If a manager submits data for April 1st, then realizes they made a mistake and submits *again*, the code **updates** the existing row instead of creating a second one. This keeps your "Total Monthly Sales" accurate.
-
-#### B. String vs Number Precision
-Notice that `saleCash` is saved as `.toString()` before hitting Drizzle. 
-*   **Reason:** Neon/PostgreSQL `NUMERIC` types are returned as strings in JavaScript to avoid the floating-point math errors (e.g., `0.1 + 0.2 != 0.3`). 
-*   **Guideline:** Always use strings for transport and `Big.js` or standard integer math for display.
-
-#### C. Validation Feedback
-The Server Action returns an object: `{ success: boolean, message?: string, error?: string }`.
-*   This allows you to use a **Toast** (like `sonner` or `react-hot-toast`) in your UI to show a green "Success" or red "Error" popup without refreshing the page.
-
----
-
-### 4. Frontend Usage Example
-In your React component, you simply call the action:
-
-```tsx
-const onSubmit = async (values: DailyEntryInput) => {
-  const result = await submitDailyAccount(values);
-  if (result.success) {
-    toast.success(result.message);
-  } else {
-    toast.error(result.error);
-  }
-};
+```typescript
+// In a client component
+const result = await submitDailyAccount(formValues);
+if (result.success) {
+  toast.success(result.message);
+} else {
+  toast.error(result.error);
+}
 ```
-
----
-
-### Final Blueprint Doc: Deployment & Environment Checklist
-This is the last piece. It covers how to get your app off your computer and onto a public URL so your managers can start typing. 
-
-**Shall I generate the Deployment Checklist?**

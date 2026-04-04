@@ -1,362 +1,192 @@
-# Daily Outlet Account Management System (DOAMS)
+# Sahakar Daily Accounts (DOAMS)
 
-A modern, full-stack web application for managing daily outlet accounts with role-based access control, real-time validation, and comprehensive reporting.
+Daily Outlet Account Management System for Sahakar Group — a multi-outlet retail financial entry and reporting platform.
+
+**Production:** https://doams.vercel.app
+
+---
 
 ## Overview
 
-DOAMS is built to help retail outlet managers record their daily financial performance with strict data integrity, multi-tenancy support, and admin-level reporting across all outlets.
-
-### Key Features
-
-- **Daily Account Entry**: Easy-to-use mobile-first form for entering sales, expenses, and operational data
-- **Role-Based Access Control**: Managers see only their outlet data; Admins have full visibility
-- **Real-Time Calculations**: Automatic total sales calculations and profit margins
-- **Comprehensive Reports**: Admin dashboard with filtering, sorting, and CSV export
-- **Data Integrity**: Prevents duplicate entries for same date + outlet combination
-- **Financial Precision**: Uses DECIMAL types to avoid floating-point errors
-- **Secure Authentication**: Integrated with Neon Auth for user management and multi-tenancy
+DOAMS lets outlet staff record daily financial figures (sales, expenses, stock) and gives management a consolidated view across all 14 outlets. Role-based access controls what each user can see and do.
 
 ## Tech Stack
 
-| Layer          | Technology               | Purpose                           |
-| -------------- | ------------------------ | --------------------------------- |
-| **Frontend**   | Next.js 14+              | React framework with App Router   |
-| **Styling**    | Tailwind CSS + shadcn/ui | Component library & utilities     |
-| **Database**   | Neon (PostgreSQL)        | Serverless database               |
-| **ORM**        | Drizzle ORM              | Type-safe database queries        |
-| **Auth**       | Neon Auth                | Multi-user login & RBAC           |
-| **Validation** | Zod                      | Schema validation                 |
-| **Tables**     | TanStack Table           | Data table with sorting/filtering |
-| **Host**       | Vercel                   | Production deployment             |
+| Layer | Technology | Version |
+|---|---|---|
+| Framework | Next.js (App Router, Turbopack) | 16.2.2 |
+| Language | TypeScript | 5.x |
+| Styling | Tailwind CSS + shadcn/ui | latest |
+| Database | Supabase (PostgreSQL) | hosted |
+| ORM | Drizzle ORM | latest |
+| Auth | Supabase Auth (email/password, magic link) | latest |
+| Validation | Zod | latest |
+| Email | Brevo SMTP (via Supabase Auth SMTP settings) | — |
+| Deployment | Vercel | — |
+
+## User Roles
+
+| Role | Access |
+|---|---|
+| `admin` | Full access — user management, all outlets, all reports, approve registrations |
+| `ho_accountant` | All outlets + reports, edit all entries, view users (read-only) |
+| `outlet_manager` | Own outlet only — create/edit entries, own reports |
+| `outlet_accountant` | Own outlet only — create/edit entries, own reports |
 
 ## Project Structure
 
 ```
 src/
-├── app/                           # Next.js App Router
-│   ├── (auth)/                    # Public auth routes
-│   │   ├── sign-in/
-│   │   └── sign-up/
-│   ├── (dashboard)/               # Protected dashboard routes
-│   │   ├── entry/                 # Daily entry form page
-│   │   └── reports/               # Admin reporting page
-│   └── layout.tsx
+├── app/
+│   ├── admin/
+│   │   ├── overview/          # Consolidated admin dashboard
+│   │   ├── settings/          # Profile, password, notifications
+│   │   └── users/             # User management
+│   ├── api/
+│   │   ├── auth/callback/     # Supabase PKCE callback
+│   │   ├── all-reports/       # Reports API (admin/ho)
+│   │   ├── own-reports/       # Reports API (outlet users)
+│   │   ├── dashboard-stats/   # Dashboard KPIs
+│   │   ├── outlets/           # Outlet CRUD
+│   │   ├── outlets-list/      # Outlet list
+│   │   ├── outlets-stats/     # Per-outlet stats
+│   │   └── registration-requests/ # Public registration
+│   ├── accounts/chart-of-accounts/
+│   ├── dashboard/
+│   ├── entry/                 # Daily entry form
+│   ├── login/
+│   ├── outlets/
+│   ├── register/
+│   ├── reports/
+│   ├── update-password/       # Post-reset password change
+│   ├── layout.tsx
+│   └── page.tsx
 ├── components/
-│   ├── forms/                     # Form components
-│   │   └── DailyEntryForm.tsx
-│   ├── tables/                    # Table components
-│   │   └── AccountsDataTable.tsx
-│   ├── ui/                        # shadcn/ui components
-│   └── shared/                    # Shared layout components
+│   ├── admin/                 # UsersList, RegistrationRequestsList
+│   ├── forms/                 # DailyEntryForm, UserForm
+│   ├── settings/              # SettingsPages, NotificationSettings
+│   ├── shared/                # TopNav, ClientLayout, PWAPrompt
+│   ├── tables/                # AccountsDataTable
+│   └── ui/                    # shadcn/ui components
 ├── db/
-│   ├── schema.ts                  # Database schema
-│   ├── index.ts                   # Database client
-│   └── seed.ts                    # Database seeding
+│   ├── schema.ts              # 12-table Drizzle schema
+│   ├── index.ts               # postgres.js + Drizzle client
+│   └── seed.ts                # Seed script
 ├── lib/
-│   ├── actions/                   # Server Actions
-│   ├── validations/               # Zod schemas
-│   ├── auth-utils.ts              # Auth utilities
-│   └── utils.ts                   # Helper utilities
-├── middleware.ts                  # Neon Auth middleware
-├── globals.css                    # Global styles
-└── types/                         # TypeScript definitions
+│   ├── actions/               # Server actions (accounts, users, registrations, audit, coa)
+│   ├── supabase/              # client.ts, server.ts
+│   ├── permissions.ts         # RBAC matrix
+│   ├── export.ts              # jsPDF export
+│   └── validations/           # Zod schemas
+├── types/supabase.ts          # Generated Supabase types
+└── proxy.ts                   # Next.js 16 routing middleware
 ```
 
 ## Getting Started
 
 ### Prerequisites
-
 - Node.js 18+
-- npm or yarn
-- Neon account (for PostgreSQL database)
-- Neon Auth account (for authentication)
+- Supabase account
 - Vercel account (for deployment)
 
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone <repo-url>
-   cd daily-accounts
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   npm install
-   ```
-
-3. **Setup environment variables**
-   Copy `.env.example` to `.env.local` and fill in your credentials:
-
-   ```bash
-   cp .env.example .env.local
-   ```
-
-   Required variables:
-   - `DATABASE_URL` - Neon pooled connection string
-   - `NEXT_PUBLIC_Neon Auth_PUBLISHABLE_KEY`
-   - `Neon Auth_SECRET_KEY`
-
-4. **Setup database**
-
-   ```bash
-   npm run db:push
-   npm run db:seed
-   ```
-
-5. **Run development server**
-   ```bash
-   npm run dev
-   ```
-
-Open [http://localhost:3000](http://localhost:3000) to see your app.
-
-## Database Setup
-
-### Neon Connection
-
-1. Create a Neon project at https://neon.tech
-2. Get your pooled connection string:
-   - Go to Project Settings → Connection string
-   - Copy the **Pooled connection** string (ends with `-pooler`)
-   - Paste it into `DATABASE_URL` in `.env.local`
-
-### Seeding Initial Data
-
-The seed script creates 5 outlets:
-
-- MELATTUR
-- MAKKARAPPARAMBU
-- TIRUR
-- KARINKALLATHANI
-- MANJERI
-
-Run seeding after pushing schema:
+### 1. Clone and install
 
 ```bash
-npm run db:seed
+git clone https://github.com/frpboy/Sahakar-Daily-Accounts.git
+cd Sahakar-Daily-Accounts
+npm install
 ```
 
-## Authentication Setup
+### 2. Environment variables
 
-### Neon Auth Configuration
+Create `.env.local`:
 
-1. Create a Neon Auth app at https://dashboard.Neon Auth.com
-2. Copy your API keys to `.env.local`
-3. Configure redirect URLs:
-   - Sign-in: `http://localhost:3000/sign-in`
-   - Sign-up: `http://localhost:3000/sign-up`
-   - After sign-in: `/entry`
+```env
+# Supabase — Transaction Pooler (port 6543, used at runtime)
+DATABASE_URL=postgresql://postgres.PROJECT_REF:PASSWORD@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres
 
-### User Metadata (RBAC)
+# Supabase — Direct connection (port 5432, used by drizzle-kit only)
+DIRECT_URL=postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
 
-In Neon Auth Dashboard, set custom metadata for each user:
-
-**Admin User:**
-
-```json
-{
-  "role": "admin"
-}
+# Supabase Auth
+NEXT_PUBLIC_SUPABASE_URL=https://PROJECT_REF.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...   # Never expose to client
 ```
 
-**Manager User:**
-
-```json
-{
-  "role": "manager",
-  "outletId": "uuid-from-database"
-}
-```
-
-To find outlet UUIDs, check your Neon database:
-
-```sql
-SELECT id, name FROM outlets;
-```
-
-## Development
-
-### Database Migrations
-
-When you update the schema:
-
-1. Modify `src/db/schema.ts`
-2. Generate migration:
-   ```bash
-   npm run db:generate
-   ```
-3. Push to database:
-   ```bash
-   npm run db:push
-   ```
-4. Or apply migration:
-   ```bash
-   npm run db:migrate
-   ```
-
-### Available Scripts
+### 3. Push schema and seed
 
 ```bash
-npm run dev           # Start dev server
-npm run build         # Build for production
-npm run start         # Start production server
-npm run lint          # Run ESLint
-npm run db:generate   # Generate migrations
-npm run db:push       # Push schema to database
+npm run db:push    # Push Drizzle schema to Supabase
+npm run db:seed    # Seed 14 outlets + 420 dummy entries
+```
+
+### 4. Run development server
+
+```bash
+npm run dev
+# Open http://localhost:3000
+```
+
+## Available Scripts
+
+```bash
+npm run dev           # Dev server (Turbopack)
+npm run build         # Production build
+npm run lint          # ESLint
+npm run db:push       # Push schema to Supabase (uses DIRECT_URL)
+npm run db:generate   # Generate Drizzle migration files
 npm run db:studio     # Open Drizzle Studio
-npm run db:seed       # Seed initial data
-npm run format        # Format code with Prettier
+npm run db:seed       # Seed database
+npm run format        # Prettier format
 ```
 
-## Features
+## Database
 
-### Manager View
+**Provider:** Supabase PostgreSQL (project: `grdeedwkzqyfxgfeskdr`)
 
-- Daily entry form with auto-calculated total sales
-- View last 7 days of entries
-- Mobile-first design with number input support
+**12 tables:** `outlets`, `users`, `daily_accounts`, `account_categories`, `account_groups`, `chart_of_accounts`, `audit_logs`, `notifications`, `registration_requests`, `financial_years`, `system_preferences`, `submission_reminders`
 
-### Admin View
+Key constraint: `daily_accounts(outlet_id, date)` UNIQUE — one entry per outlet per day.
 
-- View all outlet entries in a table
-- Filter by outlet and date range
-- Sort by any column
-- Export to CSV
-- See monthly aggregates
-- Monitor profit margins
+All monetary values use `NUMERIC(12,2)` — no floating-point errors.
 
-### Security
+## Authentication
 
-- Server-side RBAC enforcement
-- Middleware route protection
-- ID swapping prevention
-- Secure numeric handling with DECIMAL types
+- Email + Password sign-in
+- Magic link sign-in
+- Forgot password → email reset link → `/update-password`
+- Registration request flow: user submits request at `/register` → admin approves → user can log in immediately
+- No public self-signup — all accounts require admin approval
+- Routing middleware: `src/proxy.ts` — protects all routes, allows `/login`, `/register`, `/api/auth/callback`, `/update-password`
+
+## PWA
+
+- Manifest at `public/manifest.json`
+- Service worker at `public/sw.js`
+- Install prompt via `beforeinstallprompt`
+- Push notification permission managed in Settings → Notifications
 
 ## Deployment
 
-### Vercel Deployment
+Push to `main` → Vercel auto-deploys.
 
-1. **Push to GitHub** - Connect your repo to Vercel
+Required Vercel environment variables:
 
-2. **Create Vercel Project**
-   - Import from GitHub
-   - Framework: Next.js
-   - Root: ./
-   - Build Command: `next build`
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Supabase Transaction Pooler (port 6543) |
+| `DIRECT_URL` | Supabase Direct connection (port 5432) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (public) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key (secret) |
 
-3. **Configure Environment Variables** in Vercel Project Settings:
+## Production Checklist
 
-   ```
-   DATABASE_URL=postgresql://...
-   NEXT_PUBLIC_Neon Auth_PUBLISHABLE_KEY=pk_live_...
-   Neon Auth_SECRET_KEY=sk_live_...
-   NEXT_PUBLIC_Neon Auth_SIGN_IN_URL=/sign-in
-   NEXT_PUBLIC_Neon Auth_SIGN_UP_URL=/sign-up
-   NEXT_PUBLIC_Neon Auth_AFTER_SIGN_IN_URL=/entry
-   ```
-
-4. **Deploy** - Vercel will auto-deploy on git push
-
-### Production Checklist
-
-- [ ] Use Neon Production connection string
-- [ ] Switch Neon Auth to Production instance
-- [ ] Add production domain to Neon Auth allowed origins
-- [ ] Configure CORS for your domain
-- [ ] Set up database backups
-- [ ] Enable SSL verification
-- [ ] Configure error logging (Sentry optional)
-- [ ] Test all features in production
-
-## API Reference
-
-### Server Actions
-
-All server actions are located in `src/lib/actions/accounts.ts`
-
-#### `submitDailyAccount(data)`
-
-Submit or update a daily account entry.
-
-**Parameters:**
-
-- `date: Date` - Entry date
-- `outletId: string` - Outlet UUID
-- `saleCash: number` - Cash sales
-- `saleUpi: number` - UPI sales
-- `saleCredit: number` - Credit sales
-- `expenses: number` - Daily expenses
-- `purchase: number` - Purchase amount
-- `closingStock: number` - Closing stock
-
-**Returns:**
-
-```json
-{
-  "success": boolean,
-  "message": "success message",
-  "error": "error message"
-}
-```
-
-#### `getDailyEntries()`
-
-Fetch all entries (filtered by user role).
-
-Returns array of entries with outlet data.
-
-#### `getAllOutlets()`
-
-Fetch all outlets.
-
-Returns array of outlet objects with id and name.
-
-## Troubleshooting
-
-### "Too many connections" Error
-
-- Ensure you're using Neon's **pooled connection** string (ends with `-pooler`)
-- Check `.env.local` has correct `DATABASE_URL`
-
-### Duplicate Entries
-
-- Database has unique constraint on `(outlet_id, date)`
-- Trying to submit same date + outlet will update existing entry
-
-### RBAC Not Working
-
-- Verify Neon Auth user has custom metadata set correctly
-- Check metadata key names match exactly (`role`, `outletId`)
-- Clear browser cache and re-login if changed metadata
-
-### Forms Not Working
-
-- Ensure `NEXT_PUBLIC_Neon Auth_PUBLISHABLE_KEY` is in `.env.local`
-- Check Neon Auth redirect URLs are configured correctly
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Run tests and formatting
-4. Submit a pull request
-
-## License
-
-MIT License - See LICENSE file for details
-
-## Support
-
-For issues or questions:
-
-1. Check troubleshooting section above
-2. Review documentation files in workspace
-3. Check Neon and Neon Auth documentation
-4. Open an issue on GitHub
-
----
-
-**Built with ❤️ for efficient outlet management**
+- [x] Supabase project configured with SMTP (Brevo)
+- [x] All environment variables set in Vercel
+- [x] RBAC enforced at page and server action level
+- [x] Audit logging for all mutating actions
+- [x] TypeScript zero errors
+- [ ] Custom email sender domain (currently using Gmail via Brevo)
+- [ ] Server-side push notifications (VAPID)

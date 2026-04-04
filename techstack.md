@@ -1,67 +1,148 @@
-This is a modern, high-performance **Full-Stack TypeScript** architecture. This stack is chosen because it is "Serverless-first," meaning it scales perfectly, costs near zero to start, and handles financial data with high integrity.
+# DOAMS Tech Stack
 
-### 1. The Core Framework
-*   **Next.js 14+ (App Router):** The industry standard for React. It handles your frontend, API routes, and Server Actions (for data submission) in one package.
-*   **TypeScript:** Essential for a financial app to ensure you don't pass a `string` where a `number` (currency) is expected.
+## Core Framework
 
-### 2. Database & ORM (The Storage)
-*   **Neon (Serverless Postgres):** You already chose this. It provides a specialized connection string for serverless environments (pooling) which prevents "too many connections" errors.
-*   **Drizzle ORM:** The best companion for Neon. It is lightweight, provides full TypeScript types for your database, and includes **Drizzle Kit** for handling migrations (updating your table structure).
+**Next.js 16.2.2 (App Router + Turbopack)**
+- Server Components for data-fetching pages (no client-side fetch waterfalls)
+- Server Actions (`"use server"`) for all mutations — no separate API endpoints needed for forms
+- Route protection via `src/proxy.ts` (Next.js 16 routing middleware, always Node.js runtime)
+- Error boundaries via `error.tsx` files
 
-### 3. Authentication & Roles (The Logins)
-*   **Clerk:** The fastest way to implement "Multiple Logins." 
-    *   It handles email/password, social login, and MFA.
-    *   **Why for this app?** It has a built-in "Organization" feature and "User Metadata" which makes it easy to say: *"This user belongs to the Melattur outlet."*
-
-### 4. UI & Styling (The Interface)
-*   **Tailwind CSS:** For rapid styling without writing CSS files.
-*   **shadcn/ui:** A collection of accessible components. You will specifically use:
-    *   `Data Table`: For the tabular admin view.
-    *   `Form`: Integrated with Zod for validation.
-    *   `Input`: For the numeric values.
-*   **Lucide React:** For clean, consistent icons.
-
-### 5. Data Validation & State
-*   **Zod:** Used to define "Schemas." It ensures that when a manager clicks submit, the data is validated *before* it even hits your database (e.g., ensuring "Expenses" isn't a negative number).
-*   **React Hook Form:** For managing form state and handling the "auto-calculation" logic (Cash + UPI + Credit = Total Sale).
-*   **TanStack Table (React Table):** This is what you'll use to build the Admin dashboard with powerful features (sorting, filtering, pagination).
-
-### 6. Deployment & Infrastructure
-*   **Vercel:** The native home for Next.js.
-*   **GitHub:** For version control and CI/CD (push to main → automatic deploy to Vercel).
+**TypeScript** — strict typing throughout; Drizzle and Supabase both provide full inferred types.
 
 ---
 
-### Summary Table: The "DOAMS" Stack
+## Database & ORM
 
-| Layer | Technology | Purpose |
-| :--- | :--- | :--- |
-| **Frontend** | Next.js 14+ | App Framework & Routing |
-| **Styling** | Tailwind CSS + shadcn/ui | Professional UI components |
-| **Database** | **Neon** | Serverless PostgreSQL |
-| **ORM** | Drizzle ORM | Type-safe DB queries & migrations |
-| **Auth** | Clerk | Multi-user login & Role management |
-| **Validation**| Zod | Financial data integrity |
-| **Tables** | TanStack Table | Tabular reporting |
-| **Hosting** | Vercel | Production deployment |
+**Supabase PostgreSQL** (project: `grdeedwkzqyfxgfeskdr`, region: ap-southeast-2)
 
----
+Two connection strings are required:
+- `DATABASE_URL` — Transaction Pooler on port **6543** (PgBouncer). Used by the app at runtime on Vercel.
+- `DIRECT_URL` — Direct connection on port **5432**. Used only by `drizzle-kit push/generate` (bypasses PgBouncer, required for DDL).
 
-### How to Initialize this Stack
-If you want to start right now, run this in your terminal:
+**Drizzle ORM** with `postgres.js` driver
+- `prepare: false` is mandatory — PgBouncer transaction mode doesn't support prepared statements
+- Schema: `src/db/schema.ts` (12 tables)
+- Config: `drizzle.config.ts` uses `DIRECT_URL`
 
-```bash
-# 1. Create Next.js app
-npx create-next-app@latest daily-accounts --typescript --tailwind --eslint
+```typescript
+// src/db/index.ts
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
-# 2. Install UI components
-npx shadcn-ui@latest init
-
-# 3. Install Database & Auth dependencies
-npm install drizzle-orm @neondatabase/serverless @clerk/nextjs zod react-hook-form @hookform/resolvers
-
-# 4. Install Dev dependencies
-npm install -D drizzle-kit
+const client = postgres(process.env.DATABASE_URL!, { prepare: false });
+export const db = drizzle(client, { schema });
 ```
 
-**Would you like me to provide the `drizzle.config.ts` and the `schema.ts` file to get your Neon database connected?**
+---
+
+## Authentication
+
+**Supabase Auth**
+
+| Method | How |
+|---|---|
+| Email + Password | `supabase.auth.signInWithPassword()` |
+| Magic Link | `supabase.auth.signInWithOtp()` |
+| Forgot Password | `supabase.auth.resetPasswordForEmail()` → `/update-password` |
+| Admin create user | `supabase.auth.admin.createUser()` via service role key |
+
+Three Supabase client utilities:
+- `src/lib/supabase/client.ts` — `createBrowserClient()` for client components
+- `src/lib/supabase/server.ts` — `createServerClient()` (async) for server components/actions
+
+RBAC roles are stored in the `users` DB table, not in Supabase Auth metadata. Every server action reads the caller's role from the DB.
+
+---
+
+## Email
+
+**Brevo SMTP** (configured in Supabase Dashboard → Auth → SMTP settings)
+- Host: `smtp-relay.brevo.com`, port 587, TLS
+- SMTP username: `a70a1b001@smtp-brevo.com`
+- Sender: `frpboy12@gmail.com` (verified in Brevo)
+- Free tier: 300 emails/day
+- Handles: password reset emails, magic link emails
+
+---
+
+## UI & Styling
+
+**Tailwind CSS** — utility-first styling, custom `shadow-premium-lg` and animation utilities.
+
+**shadcn/ui** — component library. Components in use:
+`button`, `input`, `select`, `card`, `form`, `label`, `table`, `container`, `badge`, `switch`, `avatar`, `dropdown-menu`, `dialog`
+
+**Geist font** (via `geist` npm package) — sans for body, mono for numeric/code values.
+
+**Lucide React** — icon set throughout.
+
+**Sonner** — toast notifications (`<Toaster position="top-center" richColors closeButton />`).
+
+---
+
+## Validation
+
+**Zod** — schema validation for all server actions. Entry form schema in `src/lib/validations/entry.ts`.
+
+---
+
+## PDF Export
+
+**jsPDF + jspdf-autotable**
+- Dynamic import (`await import(...)`) to avoid SSR issues
+- A4 landscape, reads table DOM by element ID
+- Downloads directly without print dialog
+
+```typescript
+// src/lib/export.ts
+const { default: jsPDF } = await import("jspdf");
+const { default: autoTable } = await import("jspdf-autotable");
+```
+
+---
+
+## PWA
+
+- `public/manifest.json` — name, icons (192×192, 512×512), `display: standalone`, `start_url: /dashboard`
+- `public/sw.js` — service worker; handles `push` events and `notificationclick`
+- `src/components/shared/PWAPrompt.tsx` — `beforeinstallprompt` install banner + notification permission banner
+- Manifest linked via `metadata.manifest` in `src/app/layout.tsx`
+
+---
+
+## Audit Logging
+
+Every mutating server action calls `logAudit()` from `src/lib/actions/audit.ts`:
+- Records: `userId`, `userName`, `action`, `entityType`, `entityId`, `oldData` (JSONB), `newData` (JSONB)
+- Never throws — audit failure is silent so it never blocks the main operation
+
+---
+
+## Deployment
+
+**Vercel** — auto-deploys from `main` branch on GitHub.
+- Build: `next build` (Turbopack)
+- Node.js 18+ runtime
+- All 5 environment variables set in Vercel project settings
+
+---
+
+## Summary Table
+
+| Layer | Technology | Version |
+|---|---|---|
+| Framework | Next.js App Router | 16.2.2 |
+| Language | TypeScript | 5.x |
+| Styling | Tailwind CSS + shadcn/ui | latest |
+| Font | Geist (sans + mono) | latest |
+| Icons | Lucide React | latest |
+| Toasts | Sonner | latest |
+| Database | Supabase PostgreSQL | hosted |
+| DB Driver | postgres.js | 3.4.8 |
+| ORM | Drizzle ORM | latest |
+| Auth | Supabase Auth | latest |
+| Email | Brevo SMTP | — |
+| Validation | Zod | latest |
+| PDF | jsPDF + jspdf-autotable | latest |
+| Hosting | Vercel | — |

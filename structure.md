@@ -1,123 +1,167 @@
-For a **Next.js + Neon + Drizzle + Clerk** stack, you should follow a feature-based folder structure. This keeps your database logic separate from your UI components.
+# DOAMS File Structure
 
-### 1. File Tree Structure
-```text
-daily-accounts/
+## Full File Tree
+
+```
+Sahakar-Daily-Accounts/
+├── public/
+│   ├── manifest.json           # PWA manifest (icons, start_url, display: standalone)
+│   ├── sw.js                   # Service worker (push + notificationclick)
+│   └── icons/
+│       ├── icon-192x192.png
+│       └── icon-512x512.png
 ├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── (auth)/             # Login/Signup routes (Clerk)
-│   │   ├── (dashboard)/        # Main application pages
-│   │   │   ├── entry/          # Daily entry form page
-│   │   │   ├── reports/        # Admin data table page
-│   │   │   └── layout.tsx      # Sidebar/Navigation
-│   │   ├── api/                # Webhooks (e.g., Clerk sync)
-│   │   └── page.tsx            # Landing/Redirect logic
+│   ├── app/
+│   │   ├── admin/
+│   │   │   ├── overview/
+│   │   │   │   └── page.tsx    # Consolidated admin dashboard (admin + ho_accountant only)
+│   │   │   ├── settings/
+│   │   │   │   └── page.tsx    # Profile, Change Password, Notifications tabs
+│   │   │   └── users/
+│   │   │       └── page.tsx    # User management (admin) / read-only list (ho_accountant)
+│   │   ├── api/
+│   │   │   ├── auth/callback/
+│   │   │   │   └── route.ts    # Supabase PKCE code exchange
+│   │   │   ├── all-reports/
+│   │   │   │   └── route.ts    # All outlet reports with filters
+│   │   │   ├── dashboard-stats/
+│   │   │   │   └── route.ts    # Dashboard KPI aggregates
+│   │   │   ├── notifications/
+│   │   │   │   └── route.ts    # User notifications
+│   │   │   ├── outlets/
+│   │   │   │   └── route.ts    # Create outlet (POST)
+│   │   │   ├── outlets-list/
+│   │   │   │   └── route.ts    # List all outlets (GET)
+│   │   │   ├── outlets-stats/
+│   │   │   │   └── route.ts    # Per-outlet stats
+│   │   │   ├── own-reports/
+│   │   │   │   └── route.ts    # Outlet-scoped reports
+│   │   │   └── registration-requests/
+│   │   │       └── route.ts    # Public registration POST endpoint
+│   │   ├── accounts/
+│   │   │   └── chart-of-accounts/
+│   │   │       └── page.tsx    # Chart of Accounts (partial)
+│   │   ├── dashboard/
+│   │   │   └── page.tsx        # Main dashboard
+│   │   ├── entry/
+│   │   │   ├── page.tsx        # Daily entry form (server component, RBAC-aware)
+│   │   │   └── error.tsx       # Error boundary
+│   │   ├── login/
+│   │   │   └── page.tsx        # Login (password / magic link / forgot password)
+│   │   ├── outlets/
+│   │   │   ├── page.tsx        # All outlets grid
+│   │   │   └── [id]/
+│   │   │       └── page.tsx    # Single outlet detail
+│   │   ├── register/
+│   │   │   └── page.tsx        # Registration request form
+│   │   ├── reports/
+│   │   │   ├── page.tsx        # All reports (admin/ho)
+│   │   │   ├── error.tsx       # Error boundary
+│   │   │   └── own/
+│   │   │       └── page.tsx    # Own outlet reports
+│   │   ├── update-password/
+│   │   │   └── page.tsx        # Set new password after reset link
+│   │   ├── globals.css
+│   │   ├── layout.tsx          # Root layout (Geist font, manifest, ClientLayout)
+│   │   └── page.tsx            # Root redirect → /dashboard
 │   ├── components/
-│   │   ├── ui/                 # Shadcn/ui components
-│   │   ├── forms/              # DailyEntryForm.tsx
-│   │   ├── tables/             # AccountsDataTable.tsx
-│   │   └── shared/             # Navbar, Sidebar, UserButton
+│   │   ├── admin/
+│   │   │   ├── UsersList.tsx           # User list with inline edit/delete (isAdmin prop)
+│   │   │   └── RegistrationRequestsList.tsx  # Pending registration approvals
+│   │   ├── forms/
+│   │   │   ├── DailyEntryForm.tsx      # Entry form with tally + overwrite detection
+│   │   │   └── UserForm.tsx            # User create/edit form
+│   │   ├── settings/
+│   │   │   ├── SettingsPages.tsx       # PersonalProfile, SecuritySettings components
+│   │   │   └── NotificationSettings.tsx # Push notification permission management
+│   │   ├── shared/
+│   │   │   ├── ClientLayout.tsx        # Root client wrapper (TopNav, Toaster, PWAPrompt)
+│   │   │   ├── DateRangeFilter.tsx     # Reusable date range picker
+│   │   │   ├── PWAPrompt.tsx           # Install banner + notification permission banner
+│   │   │   └── TopNav.tsx              # Navigation bar (role-aware links)
+│   │   ├── tables/
+│   │   │   └── AccountsDataTable.tsx   # Reports table with sort/filter/export
+│   │   └── ui/                         # shadcn/ui components
 │   ├── db/
-│   │   ├── index.ts            # Neon client & Drizzle init
-│   │   └── schema.ts           # Database table definitions
+│   │   ├── schema.ts           # 12-table Drizzle schema
+│   │   ├── index.ts            # postgres.js + Drizzle client (prepare: false)
+│   │   └── seed.ts             # Seed 14 outlets + 420 entries
 │   ├── lib/
-│   │   ├── actions/            # Server Actions (submitEntry, etc.)
-│   │   ├── validations/        # Zod schemas (entrySchema)
-│   │   └── utils.ts            # Tailwind merge, formatting
-│   └── middleware.ts           # Clerk auth protection
-├── drizzle.config.ts           # Drizzle migration config
-├── .env.local                  # Neon URL, Clerk Keys
+│   │   ├── actions/
+│   │   │   ├── accounts.ts     # submitDailyAccount (upsert + audit log)
+│   │   │   ├── audit.ts        # logAudit() — writes to audit_logs, never throws
+│   │   │   ├── coa.ts          # Chart of Accounts server actions
+│   │   │   ├── registrations.ts # submit / approve (admin only) / reject (admin only)
+│   │   │   └── users.ts        # createUser / updateUser / deleteUser (admin only)
+│   │   ├── supabase/
+│   │   │   ├── client.ts       # createBrowserClient() for client components
+│   │   │   └── server.ts       # createServerClient() (async) for server actions
+│   │   ├── export.ts           # jsPDF A4 landscape export
+│   │   ├── permissions.ts      # ROLE_PERMISSIONS map + hasPermission() + canAccessAllOutlets()
+│   │   ├── utils.ts            # cn(), formatCurrency(), formatDate()
+│   │   └── validations/
+│   │       └── entry.ts        # Zod schema for daily entry form
+│   ├── types/
+│   │   └── supabase.ts         # Generated Supabase TypeScript types
+│   └── proxy.ts                # Next.js 16 routing middleware (route protection)
+├── drizzle.config.ts           # Drizzle config (uses DIRECT_URL)
+├── next.config.ts              # Next.js config
+├── tailwind.config.ts          # Tailwind config
+├── tsconfig.json
 └── package.json
 ```
 
 ---
 
-### 2. Database Structure (Drizzle Schema)
-In `src/db/schema.ts`, you need to define the relationship between outlets and their daily records.
+## Key Patterns
 
+### Server Component Data Fetch
 ```typescript
-import { pgTable, text, timestamp, date, numeric, uuid } from "drizzle-orm/pg-core";
-
-export const outlets = pgTable("outlets", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  name: text("name").notNull(), // e.g., "Melattur"
-  managerId: text("manager_id"), // Optional: Link to Clerk User ID
-});
-
-export const dailyAccounts = pgTable("daily_accounts", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  outletId: uuid("outlet_id").references(() => outlets.id).notNull(),
-  date: date("date").notNull(),
-  
-  // Sales
-  saleCash: numeric("sale_cash", { precision: 12, scale: 2 }).default("0"),
-  saleUpi: numeric("sale_upi", { precision: 12, scale: 2 }).default("0"),
-  saleCredit: numeric("sale_credit", { precision: 12, scale: 2 }).default("0"),
-  
-  // Operations
-  expenses: numeric("expenses", { precision: 12, scale: 2 }).default("0"),
-  purchase: numeric("purchase", { precision: 12, scale: 2 }).default("0"),
-  closingStock: numeric("closing_stock", { precision: 12, scale: 2 }).default("0"),
-  
-  createdBy: text("created_by").notNull(), // Clerk User ID
-  createdAt: timestamp("created_at").defaultNow(),
-});
-```
-
----
-
-### 3. Data Flow Structure (Server Actions)
-Instead of building a separate API (`/api/submit`), use **Server Actions**. This allows you to call functions directly from your form.
-
-```typescript
-// src/lib/actions/accounts.ts
-"use server"
-
+// app/entry/page.tsx
+import { createClient } from "@/lib/supabase/server";
 import { db } from "@/db";
-import { dailyAccounts } from "@/db/schema";
-import { auth } from "@clerk/nextjs";
-import { revalidatePath } from "next/cache";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { canAccessAllOutlets } from "@/lib/permissions";
 
-export async function createDailyEntry(data: any) {
-  const { userId } = auth();
-  if (!userId) throw new Error("Unauthorized");
-
-  // Logic to save to Neon
-  await db.insert(dailyAccounts).values({
-    ...data,
-    createdBy: userId,
-  });
-
-  revalidatePath("/reports"); // Clears cache so table updates
+export default async function EntryPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const [dbUser] = await db.select().from(users).where(eq(users.id, user!.id)).limit(1);
+  const isAdmin = canAccessAllOutlets(dbUser.role!);
+  // ...
 }
 ```
 
----
-
-### 4. Logic Structure (Calculations)
-Don't store "Total Sale" in the database as a raw column if you can avoid it. Instead, calculate it:
-1.  **In the DB:** Use a `Generated Column` (Postgres feature) to sum `cash + upi + credit`.
-2.  **In the UI:** Use a `useEffect` or `watch` from React Hook Form to show the sum to the manager while they type.
-
----
-
-### 5. Multi-Login Structure (Clerk)
-You will use **Clerk Public Metadata** to associate a user with an outlet.
-
-*   **Manager User:** Metadata = `{ "role": "manager", "outletId": "uuid-123" }`
-*   **Admin User:** Metadata = `{ "role": "admin" }`
-
-**In your code:**
+### Server Action with Role Check
 ```typescript
-const { sessionClaims } = auth();
-const userRole = sessionClaims?.metadata.role;
-const userOutlet = sessionClaims?.metadata.outletId;
+"use server";
+import { createClient } from "@/lib/supabase/server";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
-// If manager, only fetch data where outletId === userOutlet
-// If admin, fetch everything
+export async function adminOnlyAction() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  const [caller] = await db.select({ role: users.role }).from(users).where(eq(users.id, user.id)).limit(1);
+  if (!caller || caller.role !== "admin") return { success: false, error: "Forbidden" };
+  // proceed...
+}
 ```
 
-### Next Step Recommendation:
-Start by setting up the **Database Schema** and **Drizzle Kit**. Once your Neon tables are live, you can build the **Form** to send data to those tables.
+### Audit Logging
+```typescript
+import { logAudit } from "@/lib/actions/audit";
 
-**Would you like the code for the `DailyEntryForm.tsx` using shadcn and React Hook Form?**
+await logAudit({
+  userId: authUser.id,
+  action: "create" | "update" | "delete",
+  entityType: "daily_account" | "user" | "registration_request",
+  entityId: recordId,
+  oldData: previousRecord,   // optional JSONB
+  newData: updatedRecord,    // optional JSONB
+});
+```
