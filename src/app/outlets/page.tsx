@@ -256,7 +256,7 @@ export default function OutletsPage() {
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
                         Revenue
                       </p>
-                      <p className="text-sm font-black font-mono text-gray-900">
+                      <p className="text-sm font-black tabular-nums text-gray-900">
                         {formatCurrency(outlet.totalSales)}
                       </p>
                     </div>
@@ -265,7 +265,7 @@ export default function OutletsPage() {
                         Net Index
                       </p>
                       <p
-                        className={`text-sm font-black font-mono ${outlet.totalSales - outlet.totalExpenses >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                        className={`text-sm font-black tabular-nums ${outlet.totalSales - outlet.totalExpenses >= 0 ? "text-emerald-600" : "text-red-600"}`}
                       >
                         {formatCurrency(
                           outlet.totalSales - outlet.totalExpenses

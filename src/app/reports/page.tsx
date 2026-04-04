@@ -289,12 +289,12 @@ export default function ReportsPage() {
                       <tr key={i}>
                         <td className="px-4 py-3 text-sm">01 Jan 2025</td>
                         <td className="px-4 py-3 text-sm font-medium">Sahakar Pharmacy</td>
-                        <td className="px-4 py-3 text-right text-sm font-mono">₹12,500.00</td>
-                        <td className="px-4 py-3 text-right text-sm font-mono">₹8,200.00</td>
-                        <td className="px-4 py-3 text-right text-sm font-mono">₹3,000.00</td>
-                        <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">₹23,700.00</td>
-                        <td className="px-4 py-3 text-right text-sm font-mono text-red-600">₹4,500.00</td>
-                        <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">₹19,200.00</td>
+                        <td className="px-4 py-3 text-right text-sm tabular-nums">₹12,500.00</td>
+                        <td className="px-4 py-3 text-right text-sm tabular-nums">₹8,200.00</td>
+                        <td className="px-4 py-3 text-right text-sm tabular-nums">₹3,000.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-bold tabular-nums text-green-600">₹23,700.00</td>
+                        <td className="px-4 py-3 text-right text-sm tabular-nums text-red-600">₹4,500.00</td>
+                        <td className="px-4 py-3 text-right text-sm font-bold tabular-nums text-green-600">₹19,200.00</td>
                       </tr>
                     ))}
                   </tbody>
@@ -332,12 +332,12 @@ export default function ReportsPage() {
                           <tr key={row.id} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">{format(new Date(row.date), "dd MMM yyyy")}</td>
                             <td className="px-4 py-3 text-sm font-medium">{row.outletName}</td>
-                            <td className="px-4 py-3 text-right text-sm font-mono">{formatCurrency(row.saleCash)}</td>
-                            <td className="px-4 py-3 text-right text-sm font-mono">{formatCurrency(row.saleUpi)}</td>
-                            <td className="px-4 py-3 text-right text-sm font-mono">{formatCurrency(row.saleCredit)}</td>
-                            <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">{formatCurrency(totalSales)}</td>
-                            <td className="px-4 py-3 text-right text-sm font-mono text-red-600">{formatCurrency(row.expenses)}</td>
-                            <td className={`px-4 py-3 text-right text-sm font-bold font-mono ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
+                            <td className="px-4 py-3 text-right text-sm tabular-nums">{formatCurrency(row.saleCash)}</td>
+                            <td className="px-4 py-3 text-right text-sm tabular-nums">{formatCurrency(row.saleUpi)}</td>
+                            <td className="px-4 py-3 text-right text-sm tabular-nums">{formatCurrency(row.saleCredit)}</td>
+                            <td className="px-4 py-3 text-right text-sm font-bold tabular-nums text-green-600">{formatCurrency(totalSales)}</td>
+                            <td className="px-4 py-3 text-right text-sm tabular-nums text-red-600">{formatCurrency(row.expenses)}</td>
+                            <td className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
                               {formatCurrency(profit)}
                             </td>
                           </tr>

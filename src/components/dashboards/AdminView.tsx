@@ -169,7 +169,7 @@ export default function AdminView() {
                     <div className="p-2 bg-gray-100 rounded-none w-8 h-8" />
                   </div>
                   <div>
-                    <p className="text-2xl font-black tracking-tighter font-mono text-gray-900">{kpi.value}</p>
+                    <p className="text-2xl font-black tracking-tighter tabular-nums text-gray-900">{kpi.value}</p>
                     <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest mt-1.5">{kpi.sub}</p>
                   </div>
                 </div>
@@ -347,7 +347,7 @@ function KPIItem({
           </div>
           <div>
             <p
-              className={`text-2xl font-black tracking-tighter font-mono ${isSuccess ? "text-emerald-500" : isDanger ? "text-red-500" : "text-gray-900"}`}
+              className={`text-2xl font-black tracking-tighter tabular-nums ${isSuccess ? "text-emerald-500" : isDanger ? "text-red-500" : "text-gray-900"}`}
             >
               {value}
             </p>

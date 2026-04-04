@@ -424,7 +424,7 @@ export function DailyEntryForm({
                     <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
                       Payment Total
                     </p>
-                    <p className="text-3xl font-mono font-bold tracking-tight text-black mt-1">
+                    <p className="text-3xl tabular-nums font-bold tracking-tight text-black mt-1">
                       {formatCurrency(paymentTotal)}
                     </p>
                   </div>
@@ -435,7 +435,7 @@ export function DailyEntryForm({
                       </p>
                       <p
                         className={cn(
-                          "text-xl font-mono font-bold mt-1",
+                          "text-xl tabular-nums font-bold mt-1",
                           Math.abs(paymentTotal - totalSalesAmount) < 0.01
                             ? "text-emerald-600"
                             : "text-red-600 bg-red-100/50 px-2 rounded-sm"

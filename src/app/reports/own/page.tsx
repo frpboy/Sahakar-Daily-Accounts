@@ -230,23 +230,23 @@ export default function OwnReportsPage() {
                           <td className="px-4 py-3 text-sm">
                             {format(new Date(row.date), "dd MMM yyyy")}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono">
+                          <td className="px-4 py-3 text-right text-sm tabular-nums">
                             {formatCurrency(row.saleCash)}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono">
+                          <td className="px-4 py-3 text-right text-sm tabular-nums">
                             {formatCurrency(row.saleUpi)}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono">
+                          <td className="px-4 py-3 text-right text-sm tabular-nums">
                             {formatCurrency(row.saleCredit)}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-bold font-mono text-green-600">
+                          <td className="px-4 py-3 text-right text-sm font-bold tabular-nums text-green-600">
                             {formatCurrency(totalSales)}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-mono text-red-600">
+                          <td className="px-4 py-3 text-right text-sm tabular-nums text-red-600">
                             {formatCurrency(row.expenses)}
                           </td>
                           <td
-                            className={`px-4 py-3 text-right text-sm font-bold font-mono ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
+                            className={`px-4 py-3 text-right text-sm font-bold tabular-nums ${profit >= 0 ? "text-green-600" : "text-red-600"}`}
                           >
                             {formatCurrency(profit)}
                           </td>

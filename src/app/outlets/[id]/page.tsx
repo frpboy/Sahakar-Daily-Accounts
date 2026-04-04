@@ -266,22 +266,22 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
                           <td className="px-6 py-4 font-medium text-sm">
                             {dateOrPeriod}
                           </td>
-                          <td className="px-6 py-4 text-right text-sm font-mono text-gray-500">
+                          <td className="px-6 py-4 text-right text-sm tabular-nums text-gray-500">
                             {formatCurrency(item.saleCash)}
                           </td>
-                          <td className="px-6 py-4 text-right text-sm font-mono text-gray-500">
+                          <td className="px-6 py-4 text-right text-sm tabular-nums text-gray-500">
                             {formatCurrency(item.saleUpi)}
                           </td>
-                          <td className="px-6 py-4 text-right text-sm font-bold font-mono text-gray-900">
+                          <td className="px-6 py-4 text-right text-sm font-bold tabular-nums text-gray-900">
                             {formatCurrency(totalSale)}
                           </td>
                           <td className="px-6 py-4 text-right text-sm font-mono text-red-500">
                             {formatCurrency(item.expenses)}
                           </td>
-                          <td className="px-6 py-4 text-right text-sm font-mono text-gray-500">
+                          <td className="px-6 py-4 text-right text-sm tabular-nums text-gray-500">
                             {formatCurrency(item.purchase)}
                           </td>
-                          <td className={`px-6 py-4 text-right text-sm font-bold font-mono ${profit >= 0 ? "text-green-600" : "text-red-500"}`}>
+                          <td className={`px-6 py-4 text-right text-sm font-bold tabular-nums ${profit >= 0 ? "text-green-600" : "text-red-500"}`}>
                             {formatCurrency(profit)}
                           </td>
                         </tr>

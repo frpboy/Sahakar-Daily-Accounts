@@ -102,19 +102,19 @@ export default async function AdminOverviewPage() {
                         <td className="px-6 py-4 text-gray-600">
                           {report.outlet.name}
                         </td>
-                        <td className="px-6 py-4 text-right text-gray-600 font-mono">
+                        <td className="px-6 py-4 text-right text-gray-600 tabular-nums">
                           ₹{report.saleCash}
                         </td>
-                        <td className="px-6 py-4 text-right text-gray-600 font-mono">
+                        <td className="px-6 py-4 text-right text-gray-600 tabular-nums">
                           ₹{report.saleUpi}
                         </td>
-                        <td className="px-6 py-4 text-right text-gray-600 font-mono">
+                        <td className="px-6 py-4 text-right text-gray-600 tabular-nums">
                           ₹{report.saleCredit}
                         </td>
-                        <td className="px-6 py-4 text-right text-indigo-600 font-bold font-mono">
+                        <td className="px-6 py-4 text-right text-indigo-600 font-bold tabular-nums">
                           ₹{totalSale.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 text-right text-red-500 font-mono">
+                        <td className="px-6 py-4 text-right text-red-500 tabular-nums">
                           ₹{report.expenses}
                         </td>
                       </tr>
