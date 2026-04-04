@@ -262,7 +262,7 @@ export default function AdminView() {
             <div className="p-6">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {Array.from({ length: 14 }).map((_, i) => (
-                  <div key={i} className="flex flex-col gap-2 p-3 border border-gray-100 rounded-none bg-white h-full">
+                  <div key={i} className="flex flex-col gap-2 p-3 border border-gray-100 rounded-none bg-white min-h-[88px]">
                     <div className="flex justify-between items-center">
                       <div className="h-1.5 w-1.5 rounded-none bg-emerald-500" />
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">OT{String(i + 1).padStart(2, "0")}</p>
