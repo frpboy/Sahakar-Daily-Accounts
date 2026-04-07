@@ -8,7 +8,11 @@
       "mcp__plugin_playwright_playwright__browser_console_messages",
       "Bash(find \"e:/K4NN4N/Sahakar-Daily-Accounts/src/app/api\" -name \"route.ts\" -exec wc -l {} \\\\;)",
       "Bash(xargs wc:*)",
-      "Bash(npx supabase:*)"
+      "Bash(npx supabase:*)",
+      "Bash(npx boneyard-js:*)",
+      "Bash(grep -n \"getMyProfile\\\\|getCurrentUser\\\\|getProfile\" e:/K4NN4N/Sahakar-Daily-Accounts/src/lib/actions/*.ts)",
+      "Bash(ls e:/K4NN4N/Sahakar-Daily-Accounts/*.md)",
+      "Bash(ls e:/K4NN4N/Sahakar-Daily-Accounts/CHANGELOG*)"
     ]
   }
 }

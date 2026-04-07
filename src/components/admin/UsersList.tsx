@@ -40,13 +40,28 @@ interface User {
 interface UsersListProps {
   users: User[];
   outlets: Array<{ id: string; name: string }>;
-  isAdmin?: boolean;
+  callerRole: "admin" | "ho_accountant" | "outlet_manager";
+  callerOutletId?: string | null;
 }
 
-export function UsersList({ users, outlets, isAdmin = false }: UsersListProps) {
+export function UsersList({ users, outlets, callerRole, callerOutletId = null }: UsersListProps) {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const router = useRouter();
+
+  const canManageUsers = callerRole === "admin" || callerRole === "outlet_manager";
+
+  function canManageTarget(user: User) {
+    if (callerRole === "admin") {
+      return user.role !== "admin";
+    }
+
+    if (callerRole === "outlet_manager") {
+      return user.role === "outlet_accountant" && user.outletId === callerOutletId;
+    }
+
+    return false;
+  }
 
   async function handleDelete(userId: string) {
     setDeletingId(userId);
@@ -109,7 +124,7 @@ export function UsersList({ users, outlets, isAdmin = false }: UsersListProps) {
                       </p>
                     </div>
 
-                    {isAdmin && (
+                    {canManageUsers && canManageTarget(user) && (
                       <div className="flex items-center gap-1">
                         <Button
                           type="button"
@@ -139,7 +154,7 @@ export function UsersList({ users, outlets, isAdmin = false }: UsersListProps) {
                 </div>
 
                 {/* Inline edit form — admin only */}
-                {isAdmin && editingUserId === user.id && (
+                {canManageUsers && canManageTarget(user) && editingUserId === user.id && (
                   <div className="px-4 pb-4 bg-gray-50 border-t border-gray-100">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider pt-4 pb-3">
                       Edit User
@@ -155,6 +170,14 @@ export function UsersList({ users, outlets, isAdmin = false }: UsersListProps) {
                         outletId: user.outletId,
                         isActive: user.isActive ?? "true",
                       }}
+                      allowedRoles={
+                        callerRole === "outlet_manager"
+                          ? ["outlet_accountant"]
+                          : ["admin", "ho_accountant", "outlet_manager", "outlet_accountant"]
+                      }
+                      forcedOutletId={callerRole === "outlet_manager" ? callerOutletId ?? undefined : undefined}
+                      lockRole={callerRole === "outlet_manager"}
+                      lockOutlet={callerRole === "outlet_manager"}
                       onSuccess={() => {
                         setEditingUserId(null);
                         router.refresh();

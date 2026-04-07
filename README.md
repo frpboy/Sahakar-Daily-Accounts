@@ -29,9 +29,9 @@ DOAMS lets outlet staff record daily financial figures (sales, expenses, stock) 
 | Role | Access |
 |---|---|
 | `admin` | Full access — user management, all outlets, all reports, approve registrations |
-| `ho_accountant` | All outlets + reports, edit all entries, view users (read-only) |
-| `outlet_manager` | Own outlet only — create/edit entries, own reports |
-| `outlet_accountant` | Own outlet only — create/edit entries, own reports |
+| `ho_accountant` | All outlets + reports, create/edit/delete all entries, view users (read-only) |
+| `outlet_manager` | Own outlet only — create/edit/delete entries within the last 31 days, own reports, manage outlet accountant users for the assigned outlet |
+| `outlet_accountant` | Own outlet only — create/edit entries for own outlet, own reports |
 
 ## Project Structure
 
@@ -157,8 +157,29 @@ All monetary values use `NUMERIC(12,2)` — no floating-point errors.
 - Magic link sign-in
 - Forgot password → email reset link → `/update-password`
 - Registration request flow: user submits request at `/register` → admin approves → user can log in immediately
+- Admin-created users are provisioned in Supabase Auth first, then mirrored into the app `users` table
 - No public self-signup — all accounts require admin approval
 - Routing middleware: `src/proxy.ts` — protects all routes, allows `/login`, `/register`, `/api/auth/callback`, `/update-password`
+
+## Reports
+
+- `/api/all-reports` and `/api/own-reports` are paginated server-side
+- Default UI page size is `50`
+- CSV export requests all filtered rows with `includeAll=true`, so exports are not truncated by the current page
+- `/reports` supports `outlet`, `from`, `to`, and `page` query params
+- `/reports/own` supports `from`, `to`, and `page` query params
+
+## Date Handling
+
+- Business dates use explicit `YYYY-MM-DD` parsing/formatting helpers instead of `toISOString().split("T")[0]`
+- This avoids day-shift bugs for IST users when editing or submitting daily entries
+
+## Deep Links
+
+- `/entry?date=YYYY-MM-DD&outletId=<uuid>` opens the entry form in edit/prefill mode for an existing daily account.
+- `/reports?outlet=<uuid>&from=YYYY-MM-DD&to=YYYY-MM-DD&page=<n>` keeps admin and HO report filters bookmarkable/shareable.
+- `/reports/own?from=YYYY-MM-DD&to=YYYY-MM-DD&page=<n>` keeps own-report date filters bookmarkable/shareable.
+- `/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD` keeps the dashboard KPI time range bookmarkable/shareable.
 
 ## PWA
 

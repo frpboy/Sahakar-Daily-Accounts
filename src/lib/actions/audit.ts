@@ -7,7 +7,7 @@ export interface AuditParams {
   userId: string;
   userName?: string;
   action: "create" | "update" | "delete" | "approve" | "reject";
-  entityType: "daily_account" | "user" | "registration_request";
+  entityType: "daily_account" | "user" | "registration_request" | "outlet";
   entityId?: string;
   oldData?: Record<string, unknown>;
   newData?: Record<string, unknown>;

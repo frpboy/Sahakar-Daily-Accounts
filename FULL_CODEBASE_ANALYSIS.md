@@ -28,7 +28,7 @@
         └────────┬────────┘
                  │
 ┌────────────────┴────────────────────────────────────────────┐
-│              DATABASE LAYER (Neon + Drizzle)                │
+│        DATABASE LAYER (Supabase Postgres + Drizzle)         │
 │   ┌──────────────────────────────────────────────────────┐  │
 │   │  PostgreSQL with Type-Safe ORM (Drizzle)             │  │
 │   │  - Outlets | Users | Daily Accounts | Audit Logs     │  │
@@ -45,7 +45,7 @@
 |----------|-----------|---------|---------|
 | **Framework** | Next.js | 16.2.2 | App Router + Server Actions |
 | **Language** | TypeScript | 5.4.2 | Type-safe development |
-| **Database** | Neon (PostgreSQL) | - | Serverless DB with pooling |
+| **Database** | Supabase PostgreSQL | hosted | Managed PostgreSQL + Auth |
 | **ORM** | Drizzle ORM | 0.45.2 | Type-safe queries & migrations |
 | **UI Components** | shadcn/ui | - | Accessible component library |
 | **Styling** | Tailwind CSS | 3.4.1 | Utility-first CSS |
@@ -121,7 +121,7 @@ src/
 │   └── protected-route.tsx           # Route protection
 │
 ├── db/                               # Database layer
-│   ├── index.ts                      # Neon client + Drizzle init
+│   ├── index.ts                      # Postgres.js + Drizzle init
 │   ├── schema.ts                     # Database schema definition
 │   ├── seed.ts                       # Database seeding script
 │   └── seed-utils.ts                 # Helper utilities for seeding
@@ -146,7 +146,7 @@ src/
 │   └── clerk.d.ts                    # Type definitions
 │
 ├── globals.css                       # Global Tailwind styles
-└── middleware.ts                     # Next.js middleware (auth)
+└── proxy.ts                          # Next.js proxy (auth)
 
 drizzle/                              # Drizzle migrations
 ├── schema.ts                         # Source schema
@@ -273,28 +273,32 @@ Tracks all user actions for compliance.
 
 ## 🔐 Authentication & Authorization
 
-### Current Implementation Status: **⚠️ DISABLED**
+### Current Implementation Status: **Implemented with Supabase Auth**
 
-All authentication has been **hardcoded** for development. A real user would always be logged in as:
-
-```typescript
-// src/lib/auth-utils.ts
-const role = "admin" as UserRole;
-const user = {
-  id: "admin-rahul",
-  name: "Rahul",
-  email: "frpboy12@gmail.com",
-};
-```
+Authentication is live. Identity comes from Supabase Auth and roles come from the app `users` table.
 
 ### Planned RBAC Roles
 
 | Role | Permissions | Access |
 |------|-----------|--------|
 | **admin** | All operations | All outlets, all reports, user management |
-| **ho_accountant** | Create/edit all entries, view all reports | All outlets data |
-| **outlet_manager** | Create/edit own outlet entries | Only assigned outlet |
-| **outlet_accountant** | Same as manager | Only assigned outlet |
+| **ho_accountant** | Create/edit/delete all entries, view all reports, view users | All outlets data |
+| **outlet_manager** | Create/edit/delete own outlet entries within the last 31 days; manage outlet accountants in own outlet | Only assigned outlet |
+| **outlet_accountant** | Create/edit own outlet entries | Only assigned outlet |
+
+### Deep Linking
+
+- `/entry?date=YYYY-MM-DD&outletId=<uuid>` loads an existing daily account into the entry form for edit/prefill.
+- `/reports?outlet=<uuid>&from=YYYY-MM-DD&to=YYYY-MM-DD&page=<n>` preserves report filters in the URL for bookmarking and sharing.
+- `/reports/own?from=YYYY-MM-DD&to=YYYY-MM-DD&page=<n>` preserves outlet-level report date filters in the URL.
+- `/dashboard?from=YYYY-MM-DD&to=YYYY-MM-DD` preserves the dashboard KPI range in the URL.
+
+### Reporting
+
+- `/api/all-reports` and `/api/own-reports` are paginated
+- UI page size defaults to `50`
+- CSV export fetches the full filtered dataset with `includeAll=true`
+- Pagination metadata returned: `page`, `pageSize`, `total`, `totalPages`, `hasPreviousPage`, `hasNextPage`
 
 ### Permission Matrix
 
@@ -307,11 +311,11 @@ ROLE_PERMISSIONS: {
   ],
   ho_accountant: [
     view:dashboard, view:all_outlets, view:reports, entry:create, 
-    entry:edit_all, reports:export
+    entry:edit_all, reports:export, view:users
   ],
   outlet_manager: [
     view:dashboard, view:own_outlet, view:own_reports, entry:create, 
-    entry:edit_own, reports:export
+    entry:edit_own, reports:export, view:users, users:create, users:edit, users:delete
   ],
   outlet_accountant: [
     view:dashboard, view:own_outlet, view:own_reports, entry:create, 

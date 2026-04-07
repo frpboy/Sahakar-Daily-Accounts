@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { outlets, auditLogs } from "@/db/schema";
+import { outlets } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
+import { getAuthenticatedUser, unauthorized, forbidden } from "@/lib/api-auth";
+import { logAudit } from "@/lib/actions/audit";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser();
+    if (!user) return unauthorized();
+    if (user.role !== "admin") return forbidden();
+
     const body = await request.json();
     const { name, location, type } = body;
     const isPharmacy = type === "Hyper Pharmacy" || type === "Pharmacy";
@@ -41,13 +47,13 @@ export async function POST(request: NextRequest) {
       })
       .returning();
 
-    // Create audit log
-    await db.insert(auditLogs).values({
-      userName: "Admin",
-      action: "CREATE",
-      entityType: "outlets",
+    await logAudit({
+      userId: user.id,
+      userName: user.name,
+      action: "create",
+      entityType: "outlet",
       entityId: newOutlet[0].id,
-      newData: JSON.stringify(newOutlet[0]),
+      newData: newOutlet[0] as Record<string, unknown>,
     });
 
     return NextResponse.json(newOutlet[0]);

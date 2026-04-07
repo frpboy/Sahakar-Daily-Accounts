@@ -94,6 +94,13 @@ export async function submitDailyAccount(rawData: unknown) {
 - Numeric fields stored as strings by Drizzle for `NUMERIC` precision — never float
 - `outletId` from session for outlet users — form value ignored (prevents ID spoofing)
 - Audit log captures old snapshot before overwrite
+- `outlet_manager` is blocked from creating or overwriting entries older than 31 days
+
+## Edit Deep Linking
+
+- `/entry?date=YYYY-MM-DD&outletId=<uuid>` is used to open an existing daily account in edit mode.
+- The entry page resolves the record server-side and passes `initialValues` into `DailyEntryForm`.
+- `/reports/own` generates these deep links from each editable row.
 
 ---
 

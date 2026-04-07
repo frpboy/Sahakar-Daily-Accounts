@@ -140,7 +140,7 @@ export function TopNav() {
                   </DropdownMenuItem>
                 </Link> 
                 */}
-                {(userRole === "admin" || userRole === "ho_accountant") && (
+                {(userRole === "admin" || userRole === "ho_accountant" || userRole === "outlet_manager") && (
                   <Link href="/admin/users" className="w-full">
                     <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest p-3 rounded-none cursor-pointer transition-colors focus:bg-gray-900 focus:text-white flex items-center gap-3 m-0.5">
                       <Users className="h-4 w-4" />
@@ -235,7 +235,7 @@ export function TopNav() {
             </Link> 
             */}
 
-            {(userRole === "admin" || userRole === "ho_accountant") && (
+            {(userRole === "admin" || userRole === "ho_accountant" || userRole === "outlet_manager") && (
               <Link href="/admin/users">
                 <Button
                   variant="ghost"

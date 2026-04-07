@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { dailyAccounts, outlets } from "@/db/schema";
 import { sql, eq } from "drizzle-orm";
+import { getAuthenticatedUser, isAdminOrHO, unauthorized, forbidden } from "@/lib/api-auth";
 
 export async function GET() {
   try {
+    const user = await getAuthenticatedUser();
+    if (!user) return unauthorized();
+    if (!isAdminOrHO(user.role)) return forbidden();
+
     const outletsWithStats = await db
       .select({
         id: outlets.id,

@@ -13,8 +13,8 @@ Roles are stored in the `users.role` column in PostgreSQL. Supabase Auth handles
 | Role | DB value | Scope |
 |---|---|---|
 | Admin | `admin` | Full system access |
-| HO Accountant | `ho_accountant` | All outlets, no user management |
-| Outlet Manager | `outlet_manager` | Assigned outlet only |
+| HO Accountant | `ho_accountant` | All outlets, read-only user visibility |
+| Outlet Manager | `outlet_manager` | Assigned outlet only, can manage outlet accountant users in that outlet |
 | Outlet Accountant | `outlet_accountant` | Assigned outlet only |
 
 ---
@@ -41,17 +41,16 @@ Pages that require specific roles redirect at render time:
 
 ```typescript
 // src/app/admin/users/page.tsx
-const [caller] = await db.select({ role: users.role })
+const [caller] = await db.select({ role: users.role, outletId: users.outletId })
   .from(users).where(eq(users.id, authUser.id)).limit(1);
 
-if (!caller || (caller.role !== "admin" && caller.role !== "ho_accountant")) {
+if (!caller || (caller.role !== "admin" && caller.role !== "ho_accountant" && caller.role !== "outlet_manager")) {
   redirect("/dashboard");
 }
-const isAdmin = caller.role === "admin";
 ```
 
 Pages with role guards:
-- `/admin/users` — outlet roles redirected; ho_accountant gets read-only view
+- `/admin/users` — admin gets full user management, ho_accountant gets read-only view, outlet_manager gets outlet-scoped accountant management
 - `/admin/overview` — outlet roles redirected
 - `/entry` — outlet selection derived from session, not URL params
 
@@ -60,23 +59,20 @@ Pages with role guards:
 Every mutating server action validates the caller's role from the DB before executing:
 
 ```typescript
-// Only admin can create/update/delete users
-const [caller] = await db.select({ role: users.role })
-  .from(users).where(eq(users.id, authUser.id)).limit(1);
-if (!caller || caller.role !== "admin")
-  return { success: false, error: "Only admins can perform this action" };
+const caller = await getCaller();
+if (!caller) return { success: false, error: "Unauthorized" };
 ```
 
 Actions and their required roles:
 
 | Action | Required Role |
 |---|---|
-| `createUser` | `admin` |
-| `updateUser` | `admin` |
-| `deleteUser` | `admin` |
+| `createUser` | `admin`, or `outlet_manager` for `outlet_accountant` in own outlet |
+| `updateUser` | `admin`, or `outlet_manager` for `outlet_accountant` in own outlet |
+| `deleteUser` | `admin`, or `outlet_manager` for `outlet_accountant` in own outlet |
 | `approveRegistrationRequest` | `admin` |
 | `rejectRegistrationRequest` | `admin` |
-| `submitDailyAccount` | any authenticated user (outlet scoped) |
+| `submitDailyAccount` | any authenticated user (outlet scoped, outlet_manager limited to last 31 days) |
 
 ### Layer 4 — Outlet Scoping in Queries
 
@@ -96,8 +92,10 @@ const targetOutletId = isGlobal ? formData.outletId : dbUser.outletId;
 The UI hides elements based on role, but this is cosmetic only — security depends on the layers above.
 
 - **TopNav:** Staff link hidden for outlet-level roles
-- **`/admin/users`:** Add User form and Pending Registrations hidden for ho_accountant; edit/delete buttons hidden via `isAdmin` prop
+- **`/admin/users`:** Admin gets full controls; ho_accountant sees a read-only user list; outlet_manager can add/edit/delete `outlet_accountant` users for their own outlet only
 - **Entry form:** Outlet selector shows all outlets for admin/ho_accountant; outlet-level users see only their outlet
+- **Own reports:** Edit deep links point to `/entry?date=...&outletId=...`; entries older than 31 days show a lock icon for `outlet_manager`
+- **Reports:** Both report pages are paginated; export actions fetch the full filtered dataset instead of only the visible page
 
 ---
 
@@ -118,8 +116,9 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     // NOT included: users:create, users:edit, users:delete, accounts:manage
   ],
   outlet_manager: [
-    "view:dashboard", "view:own_outlet", "view:own_reports", "view:accounts",
+    "view:dashboard", "view:own_outlet", "view:own_reports", "view:accounts", "view:users",
     "entry:create", "entry:edit_own", "reports:export",
+    "users:create", "users:edit", "users:delete",
   ],
   outlet_accountant: [
     "view:dashboard", "view:own_outlet", "view:own_reports", "view:accounts",
@@ -144,8 +143,9 @@ Every create, update, delete, approve, and reject action writes to `audit_logs`:
 ```typescript
 await logAudit({
   userId: authUser.id,      // who
+  userName: dbUser.name,    // display name for audit viewers
   action: "create",         // what (create | update | delete | approve | reject)
-  entityType: "user",       // entity type
+  entityType: "user",       // entity type (also supports "outlet")
   entityId: newUserId,      // which record
   oldData: previousRecord,  // JSONB snapshot before change
   newData: newRecord,       // JSONB snapshot after change
@@ -153,3 +153,11 @@ await logAudit({
 ```
 
 `logAudit()` is in `src/lib/actions/audit.ts`. It never throws — audit failure is logged to console and never blocks the main operation.
+
+---
+
+## Notes
+
+- App users and Supabase Auth users are now treated as a single identity model: a staff account is provisioned in Supabase Auth first, then persisted in the `users` table with the same ID.
+- Registration requests still temporarily store a password because this is an internal tool, but the value is cleared after approval.
+- Daily entry date handling uses timezone-safe helpers to preserve IST business dates through edit and submit flows.

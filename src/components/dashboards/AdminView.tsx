@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -19,7 +20,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { exportToCSV, exportToPDF } from "@/lib/export";
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
-import { subDays } from "date-fns";
+import { differenceInCalendarDays, endOfMonth, isSameDay, startOfMonth, startOfYear, subDays } from "date-fns";
 import { Skeleton } from "boneyard-js/react";
 
 interface DashboardStats {
@@ -37,6 +38,9 @@ interface DashboardStats {
 }
 
 export default function AdminView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [stats, setStats] = useState<DashboardStats>({
     totalOutlets: 0,
     todayEntries: 0,
@@ -45,10 +49,69 @@ export default function AdminView() {
     outletsStatus: [],
   });
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState({
-    from: subDays(new Date(), 29),
-    to: new Date(),
+  const [dateRange, setDateRange] = useState(() => {
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
+    return {
+      from: fromParam ? new Date(fromParam) : subDays(new Date(), 29),
+      to: toParam ? new Date(toParam) : new Date(),
+    };
   });
+
+  const dateRangeLabel = React.useMemo(() => {
+    const today = new Date();
+
+    if (isSameDay(dateRange.from, today) && isSameDay(dateRange.to, today)) {
+      return "Today";
+    }
+
+    const yesterday = subDays(today, 1);
+    if (isSameDay(dateRange.from, yesterday) && isSameDay(dateRange.to, yesterday)) {
+      return "Yesterday";
+    }
+
+    if (
+      isSameDay(dateRange.from, subDays(today, 6)) &&
+      isSameDay(dateRange.to, today)
+    ) {
+      return "Last 7 Days";
+    }
+
+    if (
+      isSameDay(dateRange.from, subDays(today, 29)) &&
+      isSameDay(dateRange.to, today)
+    ) {
+      return "Last 30 Days";
+    }
+
+    if (
+      isSameDay(dateRange.from, startOfMonth(today)) &&
+      isSameDay(dateRange.to, endOfMonth(today))
+    ) {
+      return "This Month";
+    }
+
+    if (
+      isSameDay(dateRange.from, startOfYear(today)) &&
+      isSameDay(dateRange.to, today)
+    ) {
+      return "This Year";
+    }
+
+    if (differenceInCalendarDays(dateRange.to, dateRange.from) >= 0) {
+      return `${dateRange.from.toLocaleDateString("en-CA")} to ${dateRange.to.toLocaleDateString("en-CA")}`;
+    }
+
+    return "Custom Range";
+  }, [dateRange.from, dateRange.to]);
+
+  function handleRangeChange(from: Date, to: Date) {
+    setDateRange({ from, to });
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("from", from.toISOString().split("T")[0]);
+    params.set("to", to.toISOString().split("T")[0]);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }
 
   useEffect(() => {
     fetchDashboardData();
@@ -110,7 +173,8 @@ export default function AdminView() {
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <DateRangeFilter
-            onRangeChange={(from, to) => setDateRange({ from, to })}
+            onRangeChange={handleRangeChange}
+            initialLabel={dateRangeLabel}
           />
 
           <Link href="/admin/users" className="hidden lg:block">

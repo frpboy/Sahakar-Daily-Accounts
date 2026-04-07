@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { dailyAccounts, outlets } from "@/db/schema";
 import { eq, sql, desc, and } from "drizzle-orm";
+import { getAuthenticatedUser, isAdminOrHO, unauthorized } from "@/lib/api-auth";
 
 interface OutletStatus {
   id: string;
@@ -13,11 +14,19 @@ interface OutletStatus {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getAuthenticatedUser();
+    if (!user) return unauthorized();
+
     const { searchParams } = new URL(request.url);
-    const outletId = searchParams.get("outletId");
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const today = new Date().toISOString().split("T")[0];
+
+    // For outlet-level roles, always use their assigned outlet — ignore client param
+    const adminAccess = isAdminOrHO(user.role);
+    const outletId = adminAccess
+      ? searchParams.get("outletId")
+      : user.outletId;
 
     // 1. Basic Counts
     let totalOutletsCount = 0;
@@ -91,6 +100,7 @@ export async function GET(request: NextRequest) {
     // 3. Outlet Submission Status for Today
     let outletsStatus: OutletStatus[] = [];
     if (!outletId) {
+      // Only admins reach here (outlet roles always have outletId)
       const allOutlets = await db.query.outlets.findMany({
         with: {
           dailyAccounts: {

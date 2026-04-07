@@ -17,29 +17,41 @@ export default async function UsersPage() {
   const { data: { user: authUser } } = await supabase.auth.getUser();
   if (!authUser) redirect("/login");
 
-  const [caller] = await db.select({ role: usersTable.role }).from(usersTable).where(eq(usersTable.id, authUser.id)).limit(1);
+  const [caller] = await db
+    .select({ role: usersTable.role, outletId: usersTable.outletId })
+    .from(usersTable)
+    .where(eq(usersTable.id, authUser.id))
+    .limit(1);
   const callerRole = caller?.role ?? null;
 
-  // Outlet-level roles have no access to user management at all
-  if (!callerRole || (callerRole !== "admin" && callerRole !== "ho_accountant")) {
+  if (!callerRole || (callerRole !== "admin" && callerRole !== "ho_accountant" && callerRole !== "outlet_manager")) {
     redirect("/dashboard");
   }
 
   const isAdmin = callerRole === "admin";
+  const isOutletManager = callerRole === "outlet_manager";
+  const canCreateUsers = isAdmin || isOutletManager;
 
-  const users = await db.query.users
-    .findMany({
-      with: {
-        outlet: true,
-      },
-      orderBy: (users, { desc }) => [desc(users.createdAt)],
-    })
+  const users = await (isOutletManager
+    ? db.query.users.findMany({
+        where: eq(usersTable.outletId, caller?.outletId ?? ""),
+        with: { outlet: true },
+        orderBy: (users, { desc }) => [desc(users.createdAt)],
+      })
+    : db.query.users.findMany({
+        with: { outlet: true },
+        orderBy: (users, { desc }) => [desc(users.createdAt)],
+      }))
     .catch(() => []);
 
-  const outlets = await db.query.outlets
-    .findMany({
-      orderBy: (outlets, { asc }) => [asc(outlets.name)],
-    })
+  const outlets = await (isOutletManager
+    ? db.query.outlets.findMany({
+        where: (outlets, { eq }) => eq(outlets.id, caller?.outletId ?? ""),
+        orderBy: (outlets, { asc }) => [asc(outlets.name)],
+      })
+    : db.query.outlets.findMany({
+        orderBy: (outlets, { asc }) => [asc(outlets.name)],
+      }))
     .catch(() => []);
 
   const registrationRequests = await db.query.registrationRequests
@@ -57,7 +69,11 @@ export default async function UsersPage() {
               User Management
             </h1>
             <p className="text-gray-500">
-              {isAdmin ? "Manage users, roles, and branch assignments" : "View all users"}
+              {isAdmin
+                ? "Manage users, roles, and branch assignments"
+                : isOutletManager
+                  ? "Manage outlet accountant users for your assigned outlet"
+                  : "View all users"}
             </p>
           </div>
         </div>
@@ -76,20 +92,28 @@ export default async function UsersPage() {
           </div>
         )}
 
-        <div className={`grid gap-8 ${isAdmin ? "lg:grid-cols-3" : ""}`}>
-          {/* Add User Form — admin only */}
-          {isAdmin && (
+        <div className={`grid gap-8 ${canCreateUsers ? "lg:grid-cols-3" : ""}`}>
+          {/* Add User Form */}
+          {canCreateUsers && (
             <div className="lg:col-span-1">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Plus className="h-5 w-5" />
-                    Add New User
+                    {isOutletManager ? "Add Outlet Accountant" : "Add New User"}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <UserForm
                     outlets={outlets.map((o) => ({ id: o.id, name: o.name }))}
+                    allowedRoles={
+                      isOutletManager
+                        ? ["outlet_accountant"]
+                        : ["admin", "ho_accountant", "outlet_manager", "outlet_accountant"]
+                    }
+                    forcedOutletId={isOutletManager ? caller?.outletId ?? undefined : undefined}
+                    lockRole={isOutletManager}
+                    lockOutlet={isOutletManager}
                   />
                 </CardContent>
               </Card>
@@ -97,11 +121,12 @@ export default async function UsersPage() {
           )}
 
           {/* Users List */}
-          <div className={isAdmin ? "lg:col-span-2" : ""}>
+          <div className={canCreateUsers ? "lg:col-span-2" : ""}>
             <UsersList
               users={users}
               outlets={outlets.map((o) => ({ id: o.id, name: o.name }))}
-              isAdmin={isAdmin}
+              callerRole={callerRole}
+              callerOutletId={caller?.outletId ?? null}
             />
           </div>
         </div>

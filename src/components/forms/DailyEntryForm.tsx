@@ -32,45 +32,51 @@ import {
 } from "@/components/ui/card";
 
 import { dailyEntrySchema, DailyEntryInput } from "@/lib/validations/entry";
-import { submitDailyAccount } from "@/lib/actions/accounts";
+import { getEntryByDateAndOutlet, submitDailyAccount } from "@/lib/actions/accounts";
 import {
   calculateTotalSales,
   formatCurrency,
   cn,
   getISTDate,
+  formatDateInput,
+  parseDateInput,
 } from "@/lib/utils";
 
 interface DailyEntryFormProps {
   outlets: Array<{ id: string; name: string }>;
   defaultOutletId?: string;
   isAdmin?: boolean;
+  initialValues?: Record<string, unknown>;
 }
 
 export function DailyEntryForm({
   outlets,
   defaultOutletId,
   isAdmin = false,
+  initialValues,
 }: DailyEntryFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentTotal, setPaymentTotal] = useState(0);
   const [isTally, setIsTally] = useState<boolean | null>(null);
-  const [entryExists, setEntryExists] = useState(false);
+  const [entryExists, setEntryExists] = useState(!!initialValues);
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
 
   const form = useForm<DailyEntryInput>({
     resolver: zodResolver(dailyEntrySchema),
-    defaultValues: {
-      date: getISTDate(),
-      outletId: defaultOutletId || "",
-      totalSalesAmount: 0,
-      saleCash: 0,
-      saleUpi: 0,
-      saleCredit: 0,
-      saleReturn: 0,
-      expenses: 0,
-      purchase: 0,
-      closingStock: 0,
-    },
+    defaultValues: initialValues
+      ? (initialValues as DailyEntryInput)
+      : {
+          date: getISTDate(),
+          outletId: defaultOutletId || "",
+          totalSalesAmount: 0,
+          saleCash: 0,
+          saleUpi: 0,
+          saleCredit: 0,
+          saleReturn: 0,
+          expenses: 0,
+          purchase: 0,
+          closingStock: 0,
+        },
   });
 
   const cash = form.watch("saleCash");
@@ -87,15 +93,26 @@ export function DailyEntryForm({
 
     const dateStr =
       watchedDate instanceof Date
-        ? watchedDate.toISOString().split("T")[0]
+        ? formatDateInput(watchedDate)
         : "";
     if (!dateStr) return;
 
     setOverwriteConfirmed(false);
-    fetch(`/api/all-reports?outletId=${outletId}&startDate=${dateStr}&endDate=${dateStr}`)
-      .then((r) => r.json())
-      .then((rows) => setEntryExists(Array.isArray(rows) && rows.length > 0))
-      .catch(() => setEntryExists(false));
+    let isCancelled = false;
+
+    void getEntryByDateAndOutlet(dateStr, outletId)
+      .then((result) => {
+        if (isCancelled) return;
+        setEntryExists(!!result.success && !!result.data);
+      })
+      .catch(() => {
+        if (isCancelled) return;
+        setEntryExists(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [watchedDate, watchedOutletId, defaultOutletId]);
 
   useEffect(() => {
@@ -177,14 +194,11 @@ export function DailyEntryForm({
                         {...field}
                         value={
                           field.value instanceof Date
-                            ? field.value.toISOString().split("T")[0]
+                            ? formatDateInput(field.value)
                             : ""
                         }
                         onChange={(e) => {
-                          const [y, m, d] = e.target.value
-                            .split("-")
-                            .map(Number);
-                          field.onChange(new Date(y, m - 1, d));
+                          field.onChange(parseDateInput(e.target.value));
                         }}
                         className="rounded-sm border-gray-200 focus:border-black focus:ring-black"
                       />

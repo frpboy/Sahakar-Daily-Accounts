@@ -5,10 +5,113 @@
 **Project Name:** Sahakar Daily Accounts (DOAMS — Daily Outlet Account Management System)
 **Tech Stack:** Next.js 16.2.2, PostgreSQL (Supabase), Drizzle ORM, Tailwind CSS, shadcn/ui, Supabase Auth
 **Date Started:** 2026-04-01
-**Last Updated:** 2026-04-04 (Session 5)
+**Last Updated:** 2026-04-07
 **Production URL:** https://doams.vercel.app
 
 ---
+
+## 2026-04-07 — Temporary Dev Login Profiles + Role-Aware Dashboard
+
+**Dashboard routing (`src/app/dashboard/page.tsx`, `src/components/dashboards/OutletDashboardView.tsx`):**
+- Fixed the role-blind dashboard route that was always rendering `AdminView`
+- `admin` and `ho_accountant` still land on the consolidated admin dashboard
+- `outlet_manager` and `outlet_accountant` now land on an outlet-scoped dashboard with relevant actions instead of seeing the admin dashboard
+
+**Temporary dev login harness (`src/app/login/page.tsx`, `src/lib/dev-login-profiles.ts`, `src/app/api/dev-login/route.ts`):**
+- Added a temporary test-account dropdown to the login page
+- Selecting a profile pre-fills email and password and shows the intended role/outlet mapping
+- On password sign-in, the selected dev profile is provisioned/synchronized into Supabase Auth and the app `users` table before login
+- Added four hardcoded dev profiles for role testing:
+  - `admin`
+  - `ho_accountant`
+  - `outlet_manager`
+  - `outlet_accountant`
+- Outlet-level test users are assigned to the first or second outlet in the DB at provisioning time
+
+**Navigation (`src/components/shared/TopNav.tsx`):**
+- `outlet_manager` now sees the Staff link, matching the current `/admin/users` scoped-access policy
+
+## 2026-04-07 — User Provisioning, Report Pagination, IST Date Fix, Audit Cleanup
+
+**User provisioning + RBAC (`src/lib/actions/users.ts`, `src/lib/permissions.ts`, `src/app/admin/users/page.tsx`, `src/components/admin/UsersList.tsx`, `src/components/forms/UserForm.tsx`):**
+- Admin-created users are now provisioned in Supabase Auth first and then inserted into the app `users` table with the same ID
+- User update and delete flows now keep Supabase Auth and app DB records in sync
+- `ho_accountant` remains read-only for user visibility
+- `outlet_manager` is now intentionally supported on `/admin/users` with scoped user management for `outlet_accountant` users in the manager's own outlet only
+- Page-level guards, server actions, and docs were aligned to the same policy
+- Registration approval remains admin-only and now creates a real Supabase Auth user before inserting the approved app user row
+
+**Daily entry date handling (`src/lib/utils.ts`, `src/components/forms/DailyEntryForm.tsx`, `src/lib/actions/accounts.ts`, `src/app/entry/page.tsx`):**
+- Replaced `toISOString().split("T")[0]` business-date handling with explicit `YYYY-MM-DD` parse/format helpers
+- Entry edit prefill, duplicate-entry detection, and submit/update flows now preserve IST dates correctly
+
+**Reports pagination (`src/app/api/all-reports/route.ts`, `src/app/api/own-reports/route.ts`, `src/app/reports/page.tsx`, `src/app/reports/own/page.tsx`):**
+- Both report APIs now return `{ data, pagination }`
+- Added `page`, `pageSize`, `total`, `totalPages`, `hasPreviousPage`, and `hasNextPage`
+- UI pages now keep pagination state in the URL alongside existing filters
+- CSV export now fetches the full filtered dataset with `includeAll=true` instead of exporting only the visible page or a silent server cap
+
+**Outlet audit logging (`src/app/api/outlets/route.ts`, `src/lib/actions/audit.ts`):**
+- Outlet creation now records the actual authenticated actor instead of the hardcoded string `Admin`
+- Audit `newData` now writes structured objects directly for the `jsonb` column instead of pre-stringifying JSON
+- `entityType` support expanded to include `outlet`
+
+## 2026-04-07 — Deep Linking + Entry Edit Restrictions
+
+**Daily account actions (`src/lib/actions/accounts.ts`):**
+- `submitDailyAccount`: `outlet_manager` can no longer create or overwrite entries older than 31 days
+- `deleteDailyAccount`: `outlet_manager` can delete only entries for their own outlet within 31 days; `admin` and `ho_accountant` remain unrestricted
+- `getEntryByDateAndOutlet` added to support server-side entry lookup for edit prefill
+- `getMyProfile` added to expose current user's role and assigned outlet for client-side gating
+
+**Entry page + form (`src/app/entry/page.tsx`, `src/components/forms/DailyEntryForm.tsx`):**
+- `/entry` now accepts `?date=` and `?outletId=` query params
+- Existing daily account data is loaded server-side and passed into `DailyEntryForm` as `initialValues`
+- Form fields prefill when editing an existing record instead of forcing manual re-entry
+
+**Reports deep linking (`src/app/reports/page.tsx`, `src/app/reports/own/page.tsx`):**
+- `/reports` now persists `outlet`, `from`, and `to` filters in the URL
+- `/reports/own` now persists `from` and `to` filters in the URL
+- Clear actions now reset both UI state and query params
+- Own reports edit actions deep link into `/entry?date=...&outletId=...`
+
+**Dashboard deep linking (`src/app/dashboard/page.tsx`, `src/components/dashboards/AdminView.tsx`, `src/components/shared/DateRangeFilter.tsx`):**
+- Dashboard range filter now reads `from` and `to` from the URL
+- Selecting a new range updates the URL without full navigation
+- `DateRangeFilter` now syncs its visible label from the current query-backed range
+
+**Role-based UI behavior:**
+- `/reports/own`: entries older than 31 days show a lock icon for `outlet_manager`
+- `/reports/own`: `ho_accountant` can still edit historical entries without the 31-day lock
+- `/reports`: `admin` and `ho_accountant` can delete rows directly from the all-reports table
+
+## 2026-04-07 — Next.js Proxy Cleanup + Sentry Integration
+
+**Next.js 16 dev startup fix (`src/proxy.ts`, `src/middleware.ts`, `next.config.js`):**
+- Removed duplicate `src/middleware.ts` so the app uses `src/proxy.ts` only
+- This resolves the Next.js 16 startup error: "Both middleware file './src/middleware.ts' and proxy file './src/proxy.ts' are detected"
+- Added `allowedDevOrigins: ["192.168.29.120"]` to `next.config.js` so LAN dev access can use Next.js dev resources without cross-origin blocking
+- Proxy matcher now excludes `monitoring` so Sentry tunnel requests bypass auth redirects
+
+**Sentry SDK setup (`@sentry/nextjs`):**
+- Installed `@sentry/nextjs@^10.47.0`
+- Added App Router Sentry files:
+  - `instrumentation-client.ts`
+  - `instrumentation.ts`
+  - `sentry.server.config.ts`
+  - `sentry.edge.config.ts`
+  - `src/app/global-error.tsx`
+- Enabled:
+  - Error monitoring
+  - Tracing
+  - Session Replay
+  - Sentry Logs
+- Configured Sentry tunnel route at `/monitoring`
+- Added `SENTRY_DSN` and `NEXT_PUBLIC_SENTRY_DSN` to local environment config
+
+**Sentry setup limits / follow-up:**
+- Source map upload is not configured yet because `SENTRY_AUTH_TOKEN` / org / project values were not provided
+- Production-grade source map upload should be added before relying on minified stack traces
 
 ## Current Routes
 
@@ -18,11 +121,11 @@
 | `/login`                           | Static   | Supabase login (password/magic/forgot password) |
 | `/register`                        | Static   | Request access form (no public signup) |
 | `/admin/overview`                  | Static   | Admin dashboard                    |
-| `/admin/users`                     | Static   | User management (admin) / read-only user list (ho_accountant) |
+| `/admin/users`                     | Static   | User management (admin), read-only user list (ho_accountant), outlet-scoped accountant management (outlet_manager) |
 | `/dashboard`                       | Static   | Dashboard                          |
 | `/entry`                           | Static   | Daily entry form                   |
-| `/reports`                         | Static   | All outlets reports                |
-| `/reports/own`                     | Static   | Own outlet reports                 |
+| `/reports`                         | Static   | All outlets reports with deep-linked filters and pagination |
+| `/reports/own`                     | Static   | Own outlet reports with deep-linked filters and pagination |
 | `/outlets`                         | Static   | All outlets view                   |
 | `/outlets/[id]`                    | Dynamic  | Single outlet detail               |
 | `/accounts/chart-of-accounts`      | Static   | Chart of Accounts                  |
@@ -39,8 +142,8 @@
 | `/api/outlets-stats`             | GET    | Yes           | All outlets with stats       |
 | `/api/outlets-list`              | GET    | Yes           | List all outlets             |
 | `/api/outlets`                   | POST   | Yes           | Create new outlet            |
-| `/api/all-reports`               | GET    | Yes           | All reports with filters     |
-| `/api/own-reports`               | GET    | Yes           | Own outlet reports           |
+| `/api/all-reports`               | GET    | Yes           | Paginated all-reports API with filters and `includeAll` export mode |
+| `/api/own-reports`               | GET    | Yes           | Paginated own-reports API with filters and `includeAll` export mode |
 | `/api/notifications`             | GET    | Yes           | User notifications           |
 
 ---
@@ -159,8 +262,8 @@ Roles are stored in the `users` DB table. Supabase Auth handles identity only.
 | Role | Scope | Permissions |
 |------|-------|-------------|
 | `admin` | All outlets | Full CRUD, user management, all reports, accounts |
-| `ho_accountant` | All outlets | Create/edit all entries, all reports, export |
-| `outlet_manager` | Assigned outlet only | Create/edit own entries, own reports |
+| `ho_accountant` | All outlets | Create/edit all entries, all reports, export, view users |
+| `outlet_manager` | Assigned outlet only | Create/edit/delete own entries within 31 days, own reports, manage outlet accountants in own outlet |
 | `outlet_accountant` | Assigned outlet only | Create/edit own entries, own reports |
 
 Permission matrix: `src/lib/permissions.ts`
@@ -410,36 +513,33 @@ npx boneyard-js build http://localhost:3000/dashboard http://localhost:3000/repo
 
 | Capability | Admin | HO Accountant | Outlet roles |
 |---|:---:|:---:|:---:|
-| View users list | ✅ | ✅ | ❌ |
-| Add/edit/delete users | ✅ | ❌ | ❌ |
+| View users list | ✅ | ✅ | outlet_manager only |
+| Add/edit/delete users | ✅ | ❌ | outlet_manager for own outlet accountants only |
 | Approve/reject registrations | ✅ | ❌ | ❌ |
-| Staff nav link visible | ✅ | ✅ | ❌ |
+| Staff nav link visible | ✅ | ✅ | outlet_manager only |
 | /admin/overview | ✅ | ✅ | redirect |
-| /admin/users | ✅ | read-only | redirect |
+| /admin/users | ✅ | read-only | outlet_manager scoped access |
 
 **`src/lib/actions/registrations.ts`:**
 - `approveRegistrationRequest`: changed from `["admin","ho_accountant"]` → `admin` only
 - `rejectRegistrationRequest`: same change
 
 **`src/lib/actions/users.ts`:**
-- `createUser`, `updateUser`, `deleteUser`: added DB role check — returns error if caller is not admin
+- Superseded by the 2026-04-07 RBAC refactor
+- Current behavior: `admin` has full user management, `ho_accountant` is read-only, `outlet_manager` can manage `outlet_accountant` users in the manager's own outlet
 
 **`src/app/admin/users/page.tsx`:**
-- Reads caller's role from DB at render time
-- Outlet-level roles (`outlet_manager`, `outlet_accountant`) → `redirect("/dashboard")`
-- Passes `isAdmin` boolean to child components
-- Pending Registrations section: only rendered for admin
-- Add User form: only rendered for admin
-- Page subtitle changes: "Manage users…" for admin, "View all users" for ho_accountant
+- Superseded by the 2026-04-07 RBAC refactor
+- Current behavior: `outlet_manager` can access the page, but only for users in the assigned outlet and only for `outlet_accountant` management
+- Pending Registrations section remains admin-only
 
 **`src/components/admin/UsersList.tsx`:**
-- Added `isAdmin?: boolean` prop (defaults to false)
-- Edit (pencil) and Delete (trash) buttons: hidden when `isAdmin` is false
-- Inline edit form: guarded by `isAdmin` flag
+- Superseded by the 2026-04-07 RBAC refactor
+- Current behavior is role-aware and outlet-aware rather than a simple `isAdmin` toggle
 
 **`src/components/shared/TopNav.tsx`:**
-- Desktop and mobile "Staff" links: wrapped in `userRole === "admin" || userRole === "ho_accountant"` check
-- Outlet-level users see no Staff link at all
+- Superseded by the 2026-04-07 RBAC refactor
+- Current behavior: `admin`, `ho_accountant`, and `outlet_manager` all see the Staff link
 
 **`src/app/admin/overview/page.tsx`:**
 - Added server-side role check

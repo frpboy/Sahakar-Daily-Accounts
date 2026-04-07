@@ -39,6 +39,10 @@ interface UserFormProps {
     isActive: string;
   };
   onSuccess?: () => void;
+  allowedRoles?: UserFormValues["role"][];
+  forcedOutletId?: string;
+  lockRole?: boolean;
+  lockOutlet?: boolean;
 }
 
 const userFormSchema = z.object({
@@ -64,7 +68,22 @@ const ROLE_LABELS: Record<string, string> = {
   outlet_accountant: "Outlet Accountant",
 };
 
-export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
+const ALL_ROLES: UserFormValues["role"][] = [
+  "admin",
+  "ho_accountant",
+  "outlet_manager",
+  "outlet_accountant",
+];
+
+export function UserForm({
+  outlets,
+  user,
+  onSuccess,
+  allowedRoles = ALL_ROLES,
+  forcedOutletId,
+  lockRole = false,
+  lockOutlet = false,
+}: UserFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<UserFormValues>({
@@ -73,8 +92,8 @@ export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
       name: user?.name || "",
       email: user?.email || "",
       phone: user?.phone || "",
-      role: (user?.role as UserFormValues["role"]) || "outlet_manager",
-      outletId: user?.outletId || "",
+      role: (user?.role as UserFormValues["role"]) || allowedRoles[0] || "outlet_manager",
+      outletId: forcedOutletId || user?.outletId || "",
       isActive: user?.isActive !== "false",
     },
   });
@@ -94,7 +113,7 @@ export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
             email: values.email,
             phone: values.phone,
             role: values.role,
-            outletId: values.outletId || undefined,
+            outletId: forcedOutletId || values.outletId || undefined,
             isActive: values.isActive,
           })
         : await createUser({
@@ -102,7 +121,7 @@ export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
             email: values.email,
             phone: values.phone,
             role: values.role,
-            outletId: values.outletId || undefined,
+            outletId: forcedOutletId || values.outletId || undefined,
           });
 
       if (result.success) {
@@ -179,16 +198,20 @@ export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Role *</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  disabled={lockRole}
+                >
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                    {allowedRoles.map((value) => (
                       <SelectItem key={value} value={value}>
-                        {label}
+                        {ROLE_LABELS[value]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -208,7 +231,7 @@ export function UserForm({ outlets, user, onSuccess }: UserFormProps) {
               <Select
                 value={field.value}
                 onValueChange={field.onChange}
-                disabled={!requiresOutlet}
+                disabled={!requiresOutlet || lockOutlet}
               >
                 <FormControl>
                   <SelectTrigger>

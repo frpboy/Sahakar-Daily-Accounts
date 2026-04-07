@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { eq, and, between, sql } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/actions/audit";
+import { formatDateInput } from "@/lib/utils";
 
 export async function submitDailyAccount(rawData: unknown) {
   try {
@@ -47,8 +48,21 @@ export async function submitDailyAccount(rawData: unknown) {
       return { success: false, error: "Invalid outlet selected." };
     }
 
-    // 5. Format date for database
-    const dateStr = validatedData.date.toISOString().split("T")[0];
+    // 4b. 31-day window enforcement for outlet_manager / outlet_accountant
+    if (!isAdmin) {
+      const entryDate = validatedData.date instanceof Date
+        ? validatedData.date
+        : new Date(validatedData.date);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 31);
+      cutoff.setHours(0, 0, 0, 0);
+      if (entryDate < cutoff) {
+        return { success: false, error: "Cannot create or edit entries older than 31 days." };
+      }
+    }
+
+    // 5. Format date for database in the business timezone
+    const dateStr = formatDateInput(validatedData.date);
 
     // 6. Determine create vs update for audit
     const existing = await db
@@ -217,8 +231,136 @@ export async function getDailyEntriesForLastDays(days: number = 7) {
   }
 }
 
+export async function getEntryByDateAndOutlet(date: string, outletId: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
+
+    // Non-admins can only fetch their own outlet's entries
+    if (!isAdmin && dbUser.outletId !== outletId) {
+      return { success: false, error: "Forbidden" };
+    }
+
+    const [entry] = await db
+      .select()
+      .from(dailyAccounts)
+      .where(and(eq(dailyAccounts.date, date), eq(dailyAccounts.outletId, outletId)))
+      .limit(1);
+
+    return { success: true, data: entry ?? null };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getMyProfile() {
+  try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db
+      .select({
+        id: users.id,
+        role: users.role,
+        outletId: users.outletId,
+        name: users.name,
+      })
+      .from(users)
+      .where(eq(users.id, authUser.id))
+      .limit(1);
+
+    if (!dbUser) return { success: false, error: "User not found" };
+    return { success: true, data: dbUser };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function deleteDailyAccount(id: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const role = dbUser.role;
+    const isAdmin = role === "admin" || role === "ho_accountant";
+    const isOutletLevel = role === "outlet_manager" || role === "outlet_accountant";
+
+    if (!isAdmin && !isOutletLevel) return { success: false, error: "Forbidden" };
+
+    const [entry] = await db
+      .select()
+      .from(dailyAccounts)
+      .where(eq(dailyAccounts.id, id))
+      .limit(1);
+
+    if (!entry) return { success: false, error: "Entry not found" };
+
+    // outlet_manager / outlet_accountant: own outlet only, within 31 days
+    if (isOutletLevel) {
+      if (entry.outletId !== dbUser.outletId) {
+        return { success: false, error: "You can only delete entries for your own outlet" };
+      }
+      const entryDate = new Date(entry.date);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 31);
+      cutoff.setHours(0, 0, 0, 0);
+      if (entryDate < cutoff) {
+        return { success: false, error: "Cannot delete entries older than 31 days" };
+      }
+    }
+
+    await db.delete(dailyAccounts).where(eq(dailyAccounts.id, id));
+
+    await logAudit({
+      userId: dbUser.id,
+      userName: dbUser.name,
+      action: "delete",
+      entityType: "daily_account",
+      entityId: id,
+      oldData: entry as Record<string, unknown>,
+    });
+
+    revalidatePath("/reports");
+    revalidatePath("/dashboard");
+    return { success: true, message: "Entry deleted successfully" };
+  } catch (error: any) {
+    console.error("Delete Error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function getAllOutlets() {
   try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
+
+    if (!isAdmin) {
+      // Return only the user's own outlet
+      if (!dbUser.outletId) return { success: true, data: [] };
+      const result = await db
+        .select()
+        .from(outlets)
+        .where(eq(outlets.id, dbUser.outletId));
+      return { success: true, data: result };
+    }
+
     const result = await db.select().from(outlets).orderBy(outlets.name);
     return { success: true, data: result };
   } catch (error: any) {
@@ -229,7 +371,15 @@ export async function getAllOutlets() {
 
 export async function getMonthlyAggregates(year: number, month: number) {
   try {
-    // Verification bypass
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
+    if (!isAdmin) return { success: false, error: "Forbidden" };
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
