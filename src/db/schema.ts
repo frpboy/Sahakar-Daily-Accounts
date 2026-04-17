@@ -72,6 +72,7 @@ export const dailyAccounts = pgTable("daily_accounts", {
       table.outletId,
       table.date
     ),
+    dateIdx: index("daily_accounts_date_idx").on(table.date),
   };
 });
 

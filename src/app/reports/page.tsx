@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense, useCallback, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import {
@@ -11,7 +11,6 @@ import {
 import { format } from "date-fns";
 import { FileText, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { exportToCSV, exportToPDF } from "@/lib/export";
 import {
   Select,
   SelectContent,
@@ -70,8 +69,11 @@ function ReportsPageInner() {
     Math.max(1, Number(searchParams.get("page") || "1"))
   );
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
     pageSize: 50,
@@ -82,6 +84,9 @@ function ReportsPageInner() {
   });
 
   const canDelete = userRole === "admin" || userRole === "ho_accountant";
+  const ROW_HEIGHT = 49;
+  const VIEWPORT_HEIGHT = 500;
+  const OVERSCAN = 8;
 
   function updateUrl(outlet: string, from: string, to: string, nextPage: number) {
     const params = new URLSearchParams();
@@ -130,7 +135,25 @@ function ReportsPageInner() {
     });
   }, []);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    if (outlets.length > 0) return;
+
+    let cancelled = false;
+    void fetch("/api/outlets-list")
+      .then((response) => (response.ok ? response.json() : []))
+      .then((payload: Outlet[]) => {
+        if (!cancelled) setOutlets(Array.isArray(payload) ? payload : []);
+      })
+      .catch(() => {
+        if (!cancelled) setOutlets([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [outlets.length]);
+
+  const fetchData = useCallback(async (signal?: AbortSignal) => {
     setIsDataLoading(true);
     try {
       const params = new URLSearchParams();
@@ -142,30 +165,32 @@ function ReportsPageInner() {
       params.set("page", page.toString());
       params.set("pageSize", "50");
 
-      const [reportsResponse, outletsResponse] = await Promise.all([
-        fetch(`/api/all-reports?${params.toString()}`),
-        fetch("/api/outlets-list"),
-      ]);
+      const reportsResponse = await fetch(`/api/all-reports?${params.toString()}`, { signal });
 
       if (reportsResponse.ok) {
         const reportsData = await reportsResponse.json();
         setData(reportsData.data ?? []);
         setPagination((prev) => reportsData.pagination ?? prev);
       }
-
-      if (outletsResponse.ok) {
-        const outletsData = await outletsResponse.json();
-        setOutlets(outletsData);
-      }
     } catch (error) {
-      console.error("Failed to fetch reports:", error);
+      if ((error as Error).name !== "AbortError") {
+        console.error("Failed to fetch reports:", error);
+      }
     } finally {
       setIsDataLoading(false);
     }
   }, [selectedOutletId, startDate, endDate, page]);
 
   useEffect(() => {
-    void fetchData();
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetchData(controller.signal);
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [fetchData]);
 
   async function handleDelete(id: string) {
@@ -180,40 +205,49 @@ function ReportsPageInner() {
     setDeletingId(null);
   }
 
-  function handleExportCSV() {
+  async function handleExportCSV() {
+    setIsExporting(true);
     const params = new URLSearchParams();
     if (selectedOutletId && selectedOutletId !== "all") params.set("outletId", selectedOutletId);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     params.set("includeAll", "true");
 
-    fetch(`/api/all-reports?${params.toString()}`)
-      .then((response) => response.json())
-      .then((payload) => {
-        const exportData = (payload.data ?? []).map((row: ReportEntry) => {
-          const total = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
-          return {
-            Date: format(new Date(row.date), "yyyy-MM-dd"),
-            Outlet: row.outletName,
-            Cash: row.saleCash,
-            UPI: row.saleUpi,
-            Credit: row.saleCredit,
-            Total: total,
-            Expenses: row.expenses,
-            Purchase: row.purchase,
-            ClosingStock: row.closingStock,
-            Profit: calculateProfit(total, row.expenses, row.purchase),
-          };
-        });
-        exportToCSV(exportData, `Sahakar_Reports_${selectedOutletId}_${format(new Date(), "yyyyMMdd")}`);
-      })
-      .catch(() => {
-        alert("Failed to export all filtered rows");
+    try {
+      const response = await fetch(`/api/all-reports?${params.toString()}`);
+      const payload = await response.json();
+      const exportData = (payload.data ?? []).map((row: ReportEntry) => {
+        const total = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
+        return {
+          Date: format(new Date(row.date), "yyyy-MM-dd"),
+          Outlet: row.outletName,
+          Cash: row.saleCash,
+          UPI: row.saleUpi,
+          Credit: row.saleCredit,
+          Total: total,
+          Expenses: row.expenses,
+          Purchase: row.purchase,
+          ClosingStock: row.closingStock,
+          Profit: calculateProfit(total, row.expenses, row.purchase),
+        };
       });
+      const { exportToCSV } = await import("@/lib/export");
+      exportToCSV(exportData, `Sahakar_Reports_${selectedOutletId}_${format(new Date(), "yyyyMMdd")}`);
+    } catch {
+      alert("Failed to export all filtered rows");
+    } finally {
+      setIsExporting(false);
+    }
   }
 
-  function handleExportPDF() {
-    exportToPDF("reports-table-container", `Sahakar Financial Report - ${selectedOutletId === 'all' ? 'All Outlets' : data[0]?.outletName || ''}`);
+  async function handleExportPDF() {
+    setIsExporting(true);
+    try {
+      const { exportToPDF } = await import("@/lib/export");
+      await exportToPDF("reports-table-container", `Sahakar Financial Report - ${selectedOutletId === 'all' ? 'All Outlets' : data[0]?.outletName || ''}`);
+    } finally {
+      setIsExporting(false);
+    }
   }
 
 
@@ -230,6 +264,27 @@ function ReportsPageInner() {
     { sales: 0, expenses: 0 }
   );
 
+  const virtualState = useMemo(() => {
+    const total = data.length;
+    if (total === 0) {
+      return { start: 0, end: 0, topPad: 0, bottomPad: 0, rows: [] as ReportEntry[] };
+    }
+
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + OVERSCAN * 2;
+    const end = Math.min(total, start + visibleCount);
+    const topPad = start * ROW_HEIGHT;
+    const bottomPad = Math.max(0, (total - end) * ROW_HEIGHT);
+
+    return {
+      start,
+      end,
+      topPad,
+      bottomPad,
+      rows: data.slice(start, end),
+    };
+  }, [data, scrollTop]);
+
   return (
     <Container className="py-8">
         <div className="flex justify-between items-center mb-8">
@@ -243,20 +298,20 @@ function ReportsPageInner() {
             <Button
               onClick={handleExportCSV}
               variant="outline"
-              disabled={data.length === 0}
+              disabled={data.length === 0 || isExporting}
               className="h-10 border-gray-200"
             >
               <FileText className="h-4 w-4 mr-2 text-green-600" />
-              Export CSV
+              {isExporting ? "Working..." : "Export CSV"}
             </Button>
             <Button
               onClick={handleExportPDF}
               variant="outline"
-              disabled={data.length === 0}
+              disabled={data.length === 0 || isExporting}
               className="h-10 border-gray-200"
             >
               <Printer className="h-4 w-4 mr-2 text-blue-600" />
-              Print PDF
+              {isExporting ? "Working..." : "Print PDF"}
             </Button>
           </div>
         </div>
@@ -410,7 +465,12 @@ function ReportsPageInner() {
             }
           >
             <CardContent className="p-0" id="reports-table-container">
-              <div className="overflow-x-auto">
+              <div
+                ref={listRef}
+                className="overflow-x-auto overflow-y-auto"
+                style={{ maxHeight: `${VIEWPORT_HEIGHT}px` }}
+                onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+              >
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-gray-50">
@@ -433,7 +493,13 @@ function ReportsPageInner() {
                         </td>
                       </tr>
                     ) : (
-                      data.map((row) => {
+                      <>
+                        {virtualState.topPad > 0 && (
+                          <tr>
+                            <td colSpan={canDelete ? 9 : 8} style={{ height: `${virtualState.topPad}px`, padding: 0, border: 0 }} />
+                          </tr>
+                        )}
+                        {virtualState.rows.map((row) => {
                         const totalSales = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
                         const profit = calculateProfit(totalSales, row.expenses, row.purchase);
                         return (
@@ -463,7 +529,13 @@ function ReportsPageInner() {
                             )}
                           </tr>
                         );
-                      })
+                      })}
+                        {virtualState.bottomPad > 0 && (
+                          <tr>
+                            <td colSpan={canDelete ? 9 : 8} style={{ height: `${virtualState.bottomPad}px`, padding: 0, border: 0 }} />
+                          </tr>
+                        )}
+                      </>
                     )}
                   </tbody>
                 </table>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense, useCallback, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,6 @@ import { formatCurrency, calculateTotalSales, calculateProfit } from "@/lib/util
 import { format } from "date-fns";
 import { FileText, Printer, Pencil, Trash2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { exportToCSV, exportToPDF } from "@/lib/export";
 import { getMyProfile, deleteDailyAccount } from "@/lib/actions/accounts";
 import Link from "next/link";
 
@@ -45,6 +44,7 @@ function OwnReportsPageInner() {
   const searchParams = useSearchParams();
   const [data, setData] = useState<OwnReportEntry[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isExporting, setIsExporting] = useState(false);
   const [outletName, setOutletName] = useState<string>("");
   const [outletId, setOutletId] = useState<string>("");
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -52,6 +52,7 @@ function OwnReportsPageInner() {
   const [endDate, setEndDate] = useState<string>(searchParams.get("to") ?? "");
   const [page, setPage] = useState<number>(Math.max(1, Number(searchParams.get("page") || "1")));
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [scrollTop, setScrollTop] = useState(0);
   const [pagination, setPagination] = useState<PaginationMeta>({
     page: 1,
     pageSize: 50,
@@ -63,6 +64,9 @@ function OwnReportsPageInner() {
 
   // ho_accountant has no date restriction; outlet_manager is bound to 31 days
   const canEditAll = userRole === "ho_accountant" || userRole === "admin";
+  const ROW_HEIGHT = 49;
+  const VIEWPORT_HEIGHT = 500;
+  const OVERSCAN = 8;
 
   useEffect(() => {
     getMyProfile().then((r) => {
@@ -82,7 +86,7 @@ function OwnReportsPageInner() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  const fetchOwnData = useCallback(async () => {
+  const fetchOwnData = useCallback(async (signal?: AbortSignal) => {
     setIsDataLoading(true);
     try {
       const params = new URLSearchParams();
@@ -91,7 +95,7 @@ function OwnReportsPageInner() {
       params.set("page", page.toString());
       params.set("pageSize", "50");
 
-      const response = await fetch(`/api/own-reports?${params.toString()}`);
+      const response = await fetch(`/api/own-reports?${params.toString()}`, { signal });
       if (response.ok) {
         const result = await response.json();
         const rows = result.data ?? [];
@@ -102,14 +106,24 @@ function OwnReportsPageInner() {
         }
       }
     } catch (error) {
-      console.error("Failed to fetch reports:", error);
+      if ((error as Error).name !== "AbortError") {
+        console.error("Failed to fetch reports:", error);
+      }
     } finally {
       setIsDataLoading(false);
     }
   }, [startDate, endDate, page]);
 
   useEffect(() => {
-    void fetchOwnData();
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      void fetchOwnData(controller.signal);
+    }, 250);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
   }, [fetchOwnData]);
 
   function handleStartDate(val: string) {
@@ -148,39 +162,48 @@ function OwnReportsPageInner() {
     setDeletingId(null);
   }
 
-  function handleExportCSV() {
+  async function handleExportCSV() {
     if (data.length === 0) return;
+    setIsExporting(true);
     const params = new URLSearchParams();
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
     params.set("includeAll", "true");
 
-    fetch(`/api/own-reports?${params.toString()}`)
-      .then((response) => response.json())
-      .then((payload) => {
-        const exportData = (payload.data ?? []).map((row: OwnReportEntry) => {
-          const totalSales = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
-          return {
-            Date: format(new Date(row.date), "yyyy-MM-dd"),
-            Cash: row.saleCash,
-            UPI: row.saleUpi,
-            Credit: row.saleCredit,
-            "Total Sales": totalSales,
-            Expenses: row.expenses,
-            Purchase: row.purchase,
-            "Closing Stock": row.closingStock,
-            Profit: calculateProfit(totalSales, row.expenses, row.purchase),
-          };
-        });
-        exportToCSV(exportData, `Sahakar_OwnReport_${format(new Date(), "yyyyMMdd")}`);
-      })
-      .catch(() => {
-        alert("Failed to export all filtered rows");
+    try {
+      const response = await fetch(`/api/own-reports?${params.toString()}`);
+      const payload = await response.json();
+      const exportData = (payload.data ?? []).map((row: OwnReportEntry) => {
+        const totalSales = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
+        return {
+          Date: format(new Date(row.date), "yyyy-MM-dd"),
+          Cash: row.saleCash,
+          UPI: row.saleUpi,
+          Credit: row.saleCredit,
+          "Total Sales": totalSales,
+          Expenses: row.expenses,
+          Purchase: row.purchase,
+          "Closing Stock": row.closingStock,
+          Profit: calculateProfit(totalSales, row.expenses, row.purchase),
+        };
       });
+      const { exportToCSV } = await import("@/lib/export");
+      exportToCSV(exportData, `Sahakar_OwnReport_${format(new Date(), "yyyyMMdd")}`);
+    } catch {
+      alert("Failed to export all filtered rows");
+    } finally {
+      setIsExporting(false);
+    }
   }
 
-  function handleExportPDF() {
-    exportToPDF("own-reports-table-container", `Sahakar Financial Report - ${outletName || "My Outlet"}`);
+  async function handleExportPDF() {
+    setIsExporting(true);
+    try {
+      const { exportToPDF } = await import("@/lib/export");
+      await exportToPDF("own-reports-table-container", `Sahakar Financial Report - ${outletName || "My Outlet"}`);
+    } finally {
+      setIsExporting(false);
+    }
   }
 
   const totals = data.reduce(
@@ -192,6 +215,25 @@ function OwnReportsPageInner() {
     },
     { sales: 0, expenses: 0, purchase: 0 }
   );
+
+  const virtualState = useMemo(() => {
+    const total = data.length;
+    if (total === 0) {
+      return { topPad: 0, bottomPad: 0, rows: [] as OwnReportEntry[] };
+    }
+
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT) + OVERSCAN * 2;
+    const end = Math.min(total, start + visibleCount);
+    const topPad = start * ROW_HEIGHT;
+    const bottomPad = Math.max(0, (total - end) * ROW_HEIGHT);
+
+    return {
+      topPad,
+      bottomPad,
+      rows: data.slice(start, end),
+    };
+  }, [data, scrollTop]);
 
   return (
     <Container className="py-8">
@@ -209,20 +251,20 @@ function OwnReportsPageInner() {
           <Button
             onClick={handleExportCSV}
             variant="outline"
-            disabled={data.length === 0}
+            disabled={data.length === 0 || isExporting}
             className="h-10 border-gray-200"
           >
             <FileText className="h-4 w-4 mr-2 text-green-600" />
-            Export CSV
+            {isExporting ? "Working..." : "Export CSV"}
           </Button>
           <Button
             onClick={handleExportPDF}
             variant="outline"
-            disabled={data.length === 0}
+            disabled={data.length === 0 || isExporting}
             className="h-10 border-gray-200"
           >
             <Printer className="h-4 w-4 mr-2 text-blue-600" />
-            Print PDF
+            {isExporting ? "Working..." : "Print PDF"}
           </Button>
         </div>
       </div>
@@ -296,7 +338,11 @@ function OwnReportsPageInner() {
           <CardTitle>Daily Entries ({pagination.total})</CardTitle>
         </CardHeader>
         <CardContent className="p-0" id="own-reports-table-container">
-          <div className="overflow-x-auto">
+          <div
+            className="overflow-x-auto overflow-y-auto"
+            style={{ maxHeight: `${VIEWPORT_HEIGHT}px` }}
+            onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+          >
             <table className="w-full">
               <thead>
                 <tr className="border-b bg-gray-50">
@@ -325,7 +371,13 @@ function OwnReportsPageInner() {
                     </td>
                   </tr>
                 ) : (
-                  data.map((row) => {
+                  <>
+                    {virtualState.topPad > 0 && (
+                      <tr>
+                        <td colSpan={9} style={{ height: `${virtualState.topPad}px`, padding: 0, border: 0 }} />
+                      </tr>
+                    )}
+                    {virtualState.rows.map((row) => {
                     const totalSales = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
                     const profit = calculateProfit(totalSales, row.expenses, row.purchase);
                     const editable = canEditAll || isWithin31Days(row.date);
@@ -374,7 +426,13 @@ function OwnReportsPageInner() {
                         </td>
                       </tr>
                     );
-                  })
+                  })}
+                    {virtualState.bottomPad > 0 && (
+                      <tr>
+                        <td colSpan={9} style={{ height: `${virtualState.bottomPad}px`, padding: 0, border: 0 }} />
+                      </tr>
+                    )}
+                  </>
                 )}
               </tbody>
             </table>
