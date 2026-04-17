@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -113,11 +113,7 @@ export default function AdminView() {
     router.replace(`?${params.toString()}`, { scroll: false });
   }
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [dateRange]);
-
-  async function fetchDashboardData() {
+  const fetchDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -136,7 +132,11 @@ export default function AdminView() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [dateRange.from, dateRange.to]);
+
+  useEffect(() => {
+    void fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleExportCSV = () => {
     const exportData = stats.outletsStatus.map((outlet) => ({

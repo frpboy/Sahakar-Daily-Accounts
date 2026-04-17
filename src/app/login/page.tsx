@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { DEV_LOGIN_PROFILES } from "@/lib/dev-login-profiles";
+import { DEV_LOGIN_PROFILES, isDevLoginEnabled } from "@/lib/dev-login-profiles";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -24,6 +24,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"password" | "magic" | "forgot">("password");
   const [selectedProfileKey, setSelectedProfileKey] = useState<string>("");
   const supabase = createClient();
+  const devLoginEnabled = isDevLoginEnabled();
 
   const selectedProfile =
     DEV_LOGIN_PROFILES.find((profile) => profile.key === selectedProfileKey) ?? null;
@@ -40,6 +41,7 @@ export default function LoginPage() {
 
   async function ensureDevProfileExists() {
     if (!selectedProfile) return true;
+    if (!devLoginEnabled) return true;
     if (email !== selectedProfile.email || password !== selectedProfile.password) return true;
 
     const response = await fetch("/api/dev-login", {
@@ -138,43 +140,45 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-4 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
-            <div className="space-y-1">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">
-                Temporary Test Logins
-              </p>
-              <p className="text-xs text-blue-900/80">
-                Selecting a profile prefills credentials and provisions that role/outlet mapping for local testing.
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
-                Test Account
-              </Label>
-              <Select value={selectedProfileKey} onValueChange={applyProfile}>
-                <SelectTrigger className="h-11 bg-white">
-                  <SelectValue placeholder="Choose a test login" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEV_LOGIN_PROFILES.map((profile) => (
-                    <SelectItem key={profile.key} value={profile.key}>
-                      {profile.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedProfile && (
-              <div className="rounded-lg border border-blue-200 bg-white p-3 text-xs text-gray-700 space-y-1.5">
-                <p><span className="font-bold text-gray-900">Email:</span> {selectedProfile.email}</p>
-                <p><span className="font-bold text-gray-900">Password:</span> {selectedProfile.password}</p>
-                <p><span className="font-bold text-gray-900">Role:</span> {selectedProfile.role}</p>
-                <p><span className="font-bold text-gray-900">Outlet:</span> {selectedProfile.outletLabel}</p>
+          {devLoginEnabled && (
+            <div className="space-y-4 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <div className="space-y-1">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700">
+                  Temporary Test Logins
+                </p>
+                <p className="text-xs text-blue-900/80">
+                  Selecting a profile prefills credentials and provisions that role/outlet mapping for local testing.
+                </p>
               </div>
-            )}
-          </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
+                  Test Account
+                </Label>
+                <Select value={selectedProfileKey} onValueChange={applyProfile}>
+                  <SelectTrigger className="h-11 bg-white">
+                    <SelectValue placeholder="Choose a test login" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEV_LOGIN_PROFILES.map((profile) => (
+                      <SelectItem key={profile.key} value={profile.key}>
+                        {profile.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedProfile && (
+                <div className="rounded-lg border border-blue-200 bg-white p-3 text-xs text-gray-700 space-y-1.5">
+                  <p><span className="font-bold text-gray-900">Email:</span> {selectedProfile.email}</p>
+                  <p><span className="font-bold text-gray-900">Password:</span> {selectedProfile.password}</p>
+                  <p><span className="font-bold text-gray-900">Role:</span> {selectedProfile.role}</p>
+                  <p><span className="font-bold text-gray-900">Outlet:</span> {selectedProfile.outletLabel}</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-5">
             {mode !== "forgot" && (

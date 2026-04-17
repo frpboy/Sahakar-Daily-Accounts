@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import {
@@ -130,11 +130,7 @@ function ReportsPageInner() {
     });
   }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [selectedOutletId, startDate, endDate, page]);
-
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setIsDataLoading(true);
     try {
       const params = new URLSearchParams();
@@ -154,7 +150,7 @@ function ReportsPageInner() {
       if (reportsResponse.ok) {
         const reportsData = await reportsResponse.json();
         setData(reportsData.data ?? []);
-        setPagination(reportsData.pagination ?? pagination);
+        setPagination((prev) => reportsData.pagination ?? prev);
       }
 
       if (outletsResponse.ok) {
@@ -166,7 +162,11 @@ function ReportsPageInner() {
     } finally {
       setIsDataLoading(false);
     }
-  }
+  }, [selectedOutletId, startDate, endDate, page]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this entry? This cannot be undone.")) return;

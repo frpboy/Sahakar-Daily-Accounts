@@ -29,7 +29,7 @@ export function PersonalProfile({
   const [formData, setFormData] = useState({ name: userName, phone: phone });
   const [isSaving, setIsSaving] = useState(false);
 
-  const isGlobal = role === 'admin' || role === 'super_admin' || role === 'ho_accountant';
+  const isGlobal = role === 'admin' || role === 'ho_accountant';
   const displayRole = (role || 'AUTHENTICATING').replace('_', ' ');
   const outletName = outlet?.name || "TIRUR";
   const fullLabel = isGlobal ? `${userName} - ${displayRole}` : `${userName} - ${outletName} - ${displayRole}`;
@@ -198,7 +198,7 @@ export function SessionsScreen({ sessions }: { sessions?: any[] }) {
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-3">
-                  <p className="text-xs font-black text-gray-900 uppercase italic">{session.device} // {session.os}</p>
+                  <p className="text-xs font-black text-gray-900 uppercase italic">{session.device} - {session.os}</p>
                   {session.current && <span className="bg-emerald-900 text-white text-[8px] font-black px-2 uppercase tracking-widest italic animate-pulse">Live</span>}
                 </div>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{session.location}</p>
@@ -347,7 +347,7 @@ export function OutletsScreen({ outlets, users }: { outlets: any[], users: any[]
                     <h4 className="text-sm font-black uppercase tracking-widest italic group-hover:underline decoration-emerald-500 underline-offset-4">
                       {o.name}
                     </h4>
-                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest italic">{o.type} // <span className="font-mono tracking-normal">{o.code}</span></p>
+                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest italic">{o.type} - <span className="font-mono tracking-normal">{o.code}</span></p>
                   </div>
                 </div>
 
@@ -413,7 +413,7 @@ export function FinancialYearScreen({ data, onAdd }: { data: any[], onAdd: () =>
                   <p className="text-xs font-black text-gray-900 uppercase italic tracking-widest">{fy.name}</p>
                   {fy.isCurrent && <span className="bg-emerald-900 text-white text-[8px] font-black px-2 py-0.5 uppercase tracking-widest">Current</span>}
                 </div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{fy.startDate} // {fy.endDate}</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{fy.startDate} - {fy.endDate}</p>
               </div>
             </div>
             <div className="flex gap-4">
@@ -480,9 +480,9 @@ export function AuditTrailScreen({ logs }: { logs: any[] }) {
               <p className="text-[9px] font-black text-gray-900 uppercase italic underline decoration-gray-300">{log.userName}</p>
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-gray-900 uppercase tracking-tight">{log.action}</p>
-                {log.newData && <p className="text-[8px] font-mono text-emerald-600 font-bold truncate max-w-sm uppercase">Mutation: AUTH_SUCCESS // {JSON.stringify(log.newData)}</p>}
+                {log.newData && <p className="text-[8px] font-mono text-emerald-600 font-bold truncate max-w-sm uppercase">Mutation: AUTH_SUCCESS - {JSON.stringify(log.newData)}</p>}
               </div>
-              <span className="text-[9px] font-black text-gray-400 bg-gray-50 px-2 py-0.5 border border-gray-100 w-fit uppercase tracking-widest">{log.entityType} // {log.entityId?.slice(0, 8)}</span>
+              <span className="text-[9px] font-black text-gray-400 bg-gray-50 px-2 py-0.5 border border-gray-100 w-fit uppercase tracking-widest">{log.entityType} - {log.entityId?.slice(0, 8)}</span>
             </div>
           ))}
         </div>
@@ -540,7 +540,7 @@ export function RemindersScreen({ reminders, onToggle }: { reminders: any[], onT
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-black text-gray-900 uppercase italic tracking-widest">{r.time} NODE TIME</p>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest italic">{r.days} // ACTIVE SEQUENCE</p>
+                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest italic">{r.days} - ACTIVE SEQUENCE</p>
               </div>
             </div>
             <Switch checked={r.isActive} onCheckedChange={(checked) => onToggle(r.id, checked)} />
@@ -563,7 +563,7 @@ export function PlaceholderScreen({ tag, title }: { tag: string, title: string }
           <Settings className="absolute inset-0 h-10 w-10 text-gray-100 m-auto" />
         </div>
         <div className="space-y-3">
-          <p className="text-sm font-black uppercase tracking-widest italic text-gray-900">{tag} // Node Deployment</p>
+          <p className="text-sm font-black uppercase tracking-widest italic text-gray-900">{tag} - Node Deployment</p>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest max-w-sm mx-auto leading-relaxed italic">
             This module is currently initializing its configuration schema. 
             Backend verification for {title.toLowerCase()} is in progress.
@@ -578,3 +578,4 @@ export function PlaceholderScreen({ tag, title }: { tag: string, title: string }
     </div>
   );
 }
+

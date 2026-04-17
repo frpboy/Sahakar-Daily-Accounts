@@ -59,5 +59,8 @@ export function getDevLoginProfile(key: string) {
 }
 
 export function isDevLoginEnabled() {
-  return process.env.NODE_ENV !== "production";
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_ENABLE_DEV_LOGIN === "true"
+  );
 }

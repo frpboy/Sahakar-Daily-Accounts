@@ -6,8 +6,14 @@ import { Download, Bell, X } from "lucide-react";
 export function PWAPrompt() {
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [showInstall, setShowInstall] = useState(false);
-  const [showNotifBanner, setShowNotifBanner] = useState(false);
-  const [notifGranted, setNotifGranted] = useState(false);
+  const [showNotifBanner, setShowNotifBanner] = useState(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return false;
+    return Notification.permission === "default";
+  });
+  const [notifGranted, setNotifGranted] = useState(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return false;
+    return Notification.permission === "granted";
+  });
 
   useEffect(() => {
     // Register service worker
@@ -22,15 +28,6 @@ export function PWAPrompt() {
       setShowInstall(true);
     };
     window.addEventListener("beforeinstallprompt", handler);
-
-    // Notification permission banner
-    if ("Notification" in window) {
-      if (Notification.permission === "default") {
-        setShowNotifBanner(true);
-      } else if (Notification.permission === "granted") {
-        setNotifGranted(true);
-      }
-    }
 
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);

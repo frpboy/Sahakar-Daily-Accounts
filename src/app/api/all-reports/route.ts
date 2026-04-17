@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
         saleUpi: dailyAccounts.saleUpi,
         saleCredit: dailyAccounts.saleCredit,
         expenses: dailyAccounts.expenses,
+        expenseBreakdown: dailyAccounts.expenseBreakdown,
         purchase: dailyAccounts.purchase,
         closingStock: dailyAccounts.closingStock,
       })
@@ -72,6 +73,9 @@ export async function GET(request: NextRequest) {
       saleUpi: parseFloat(entry.saleUpi || "0"),
       saleCredit: parseFloat(entry.saleCredit || "0"),
       expenses: parseFloat(entry.expenses || "0"),
+      expenseBreakdown: Array.isArray(entry.expenseBreakdown)
+        ? entry.expenseBreakdown
+        : [],
       purchase: parseFloat(entry.purchase || "0"),
       closingStock: parseFloat(entry.closingStock || "0"),
     }));

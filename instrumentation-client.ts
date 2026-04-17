@@ -7,7 +7,14 @@ Sentry.init({
   replaysSessionSampleRate: process.env.NODE_ENV === "development" ? 1.0 : 0.1,
   replaysOnErrorSampleRate: 1.0,
   enableLogs: true,
-  integrations: [Sentry.replayIntegration()],
+  integrations: [
+    Sentry.replayIntegration(),
+    Sentry.feedbackIntegration({
+      colorScheme: "system",
+      isNameRequired: true,
+      isEmailRequired: true,
+    }),
+  ],
 });
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;

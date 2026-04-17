@@ -31,8 +31,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { dailyEntrySchema, DailyEntryInput } from "@/lib/validations/entry";
-import { getEntryByDateAndOutlet, submitDailyAccount } from "@/lib/actions/accounts";
+import {
+  dailyEntrySchema,
+  DailyEntryInput,
+  EXPENSE_CATEGORIES,
+} from "@/lib/validations/entry";
+import { submitDailyAccount } from "@/lib/actions/accounts";
 import {
   calculateTotalSales,
   formatCurrency,
@@ -58,8 +62,6 @@ export function DailyEntryForm({
   const [isLoading, setIsLoading] = useState(false);
   const [paymentTotal, setPaymentTotal] = useState(0);
   const [isTally, setIsTally] = useState<boolean | null>(null);
-  const [entryExists, setEntryExists] = useState(!!initialValues);
-  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
 
   const form = useForm<DailyEntryInput>({
     resolver: zodResolver(dailyEntrySchema),
@@ -73,6 +75,7 @@ export function DailyEntryForm({
           saleUpi: 0,
           saleCredit: 0,
           saleReturn: 0,
+          expenseBreakdown: [],
           expenses: 0,
           purchase: 0,
           closingStock: 0,
@@ -83,37 +86,18 @@ export function DailyEntryForm({
   const upi = form.watch("saleUpi");
   const credit = form.watch("saleCredit");
   const totalSalesAmount = form.watch("totalSalesAmount");
-  const watchedDate = form.watch("date");
-  const watchedOutletId = form.watch("outletId");
+  const expenseBreakdown = form.watch("expenseBreakdown");
 
-  // Check if an entry already exists for the selected date + outlet
   useEffect(() => {
-    const outletId = watchedOutletId || defaultOutletId;
-    if (!watchedDate || !outletId) return;
-
-    const dateStr =
-      watchedDate instanceof Date
-        ? formatDateInput(watchedDate)
-        : "";
-    if (!dateStr) return;
-
-    setOverwriteConfirmed(false);
-    let isCancelled = false;
-
-    void getEntryByDateAndOutlet(dateStr, outletId)
-      .then((result) => {
-        if (isCancelled) return;
-        setEntryExists(!!result.success && !!result.data);
-      })
-      .catch(() => {
-        if (isCancelled) return;
-        setEntryExists(false);
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [watchedDate, watchedOutletId, defaultOutletId]);
+    const nextExpenses = (expenseBreakdown ?? []).reduce(
+      (sum, item) => sum + (Number(item.amount) || 0),
+      0
+    );
+    form.setValue("expenses", Number(nextExpenses.toFixed(2)), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }, [expenseBreakdown, form]);
 
   useEffect(() => {
     const total = calculateTotalSales(cash ?? 0, upi ?? 0, credit ?? 0);
@@ -135,7 +119,6 @@ export function DailyEntryForm({
   }, [cash, upi, credit, totalSalesAmount]);
 
   async function onSubmit(values: DailyEntryInput) {
-    if (entryExists && !overwriteConfirmed) return;
     setIsLoading(true);
     try {
       const result = await submitDailyAccount(values);
@@ -150,13 +133,12 @@ export function DailyEntryForm({
           saleUpi: 0,
           saleCredit: 0,
           saleReturn: 0,
+          expenseBreakdown: [],
           expenses: 0,
           purchase: 0,
           closingStock: 0,
         });
         setIsTally(null);
-        setEntryExists(false);
-        setOverwriteConfirmed(false);
       } else {
         toast.error(result.error || "Failed to save entry");
       }
@@ -165,6 +147,34 @@ export function DailyEntryForm({
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function toggleExpenseCategory(category: (typeof EXPENSE_CATEGORIES)[number]) {
+    const existing = form.getValues("expenseBreakdown") ?? [];
+    const exists = existing.some((item) => item.category === category);
+    const next = exists
+      ? existing.filter((item) => item.category !== category)
+      : [...existing, { category, amount: 0 }];
+    form.setValue("expenseBreakdown", next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+  }
+
+  function updateExpenseAmount(
+    category: (typeof EXPENSE_CATEGORIES)[number],
+    amount: number
+  ) {
+    const existing = form.getValues("expenseBreakdown") ?? [];
+    const next = existing.map((item) =>
+      item.category === category
+        ? { ...item, amount: Number.isFinite(amount) ? amount : 0 }
+        : item
+    );
+    form.setValue("expenseBreakdown", next, {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   }
 
   return (
@@ -500,36 +510,56 @@ export function DailyEntryForm({
                   )}
                 />
 
-                <FormField
-                  control={form.control}
-                  name="expenses"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs font-semibold text-gray-700">
-                        EXPENSES
-                      </FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
-                            ₹
-                          </span>
-                          <Input
-                            type="number"
-                            inputMode="decimal"
-                            placeholder="0"
-                            className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
-                            {...field}
-                            value={field.value || ""}
-                            onChange={(e) =>
-                              field.onChange(e.target.valueAsNumber || 0)
-                            }
-                          />
+                <div className="md:col-span-2 rounded-sm border border-gray-200 p-4">
+                  <p className="text-xs font-semibold text-gray-700 mb-3">
+                    EXPENSE CATEGORIES
+                  </p>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {EXPENSE_CATEGORIES.map((category) => {
+                      const current =
+                        expenseBreakdown?.find((item) => item.category === category) ?? null;
+                      return (
+                        <div key={category} className="rounded-sm border border-gray-100 p-2">
+                          <label className="flex items-center gap-2 text-xs font-semibold text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(current)}
+                              onChange={() => toggleExpenseCategory(category)}
+                              className="h-4 w-4 accent-black"
+                            />
+                            <span>{category}</span>
+                          </label>
+                          {current && (
+                            <div className="mt-2 relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs font-mono">
+                                ₹
+                              </span>
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                value={current.amount || ""}
+                                onChange={(e) =>
+                                  updateExpenseAmount(category, e.target.valueAsNumber || 0)
+                                }
+                                className="pl-6 font-mono rounded-sm focus:border-black focus:ring-black"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          )}
                         </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      );
+                    })}
+                  </div>
+                  <div className="mt-3 text-xs text-gray-500">
+                    Total expenses auto-calculated from selected categories.
+                  </div>
+                  <div className="mt-2 text-sm font-bold text-gray-900">
+                    Expenses Total:{" "}
+                    <span className="font-mono">{formatCurrency(form.watch("expenses"))}</span>
+                  </div>
+                </div>
 
                 <FormField
                   control={form.control}
@@ -595,27 +625,11 @@ export function DailyEntryForm({
               </div>
             </div>
 
-            {/* Overwrite warning */}
-            {entryExists && !overwriteConfirmed && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 flex items-start justify-between gap-4">
-                <p className="text-sm text-amber-800 font-medium">
-                  An entry already exists for this date. Submitting will overwrite it.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setOverwriteConfirmed(true)}
-                  className="shrink-0 text-sm font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-700"
-                >
-                  Yes, overwrite
-                </button>
-              </div>
-            )}
-
             {/* Submit Button */}
             <div className="flex justify-end pt-6 border-t border-gray-100">
               <Button
                 type="submit"
-                disabled={isLoading || (entryExists && !overwriteConfirmed)}
+                disabled={isLoading}
                 size="lg"
                 className={cn(
                   "min-w-[200px] rounded-sm font-bold uppercase tracking-widest transition-all",

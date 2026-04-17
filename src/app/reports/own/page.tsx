@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,10 +73,6 @@ function OwnReportsPageInner() {
     });
   }, []);
 
-  useEffect(() => {
-    fetchOwnData();
-  }, [startDate, endDate, page]);
-
   function updateUrl(from: string, to: string, nextPage: number) {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
@@ -86,7 +82,7 @@ function OwnReportsPageInner() {
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   }
 
-  async function fetchOwnData() {
+  const fetchOwnData = useCallback(async () => {
     setIsDataLoading(true);
     try {
       const params = new URLSearchParams();
@@ -100,7 +96,7 @@ function OwnReportsPageInner() {
         const result = await response.json();
         const rows = result.data ?? [];
         setData(rows);
-        setPagination(result.pagination ?? pagination);
+        setPagination((prev) => result.pagination ?? prev);
         if (rows.length > 0 && rows[0].outletName) {
           setOutletName(rows[0].outletName);
         }
@@ -110,7 +106,11 @@ function OwnReportsPageInner() {
     } finally {
       setIsDataLoading(false);
     }
-  }
+  }, [startDate, endDate, page]);
+
+  useEffect(() => {
+    void fetchOwnData();
+  }, [fetchOwnData]);
 
   function handleStartDate(val: string) {
     setStartDate(val);
@@ -329,7 +329,7 @@ function OwnReportsPageInner() {
                     const totalSales = calculateTotalSales(row.saleCash, row.saleUpi, row.saleCredit);
                     const profit = calculateProfit(totalSales, row.expenses, row.purchase);
                     const editable = canEditAll || isWithin31Days(row.date);
-                    const editHref = `/entry?date=${row.date}${outletId ? `&outletId=${outletId}` : ""}`;
+                    const editHref = `/entry?entryId=${row.id}${outletId ? `&outletId=${outletId}` : ""}`;
                     return (
                       <tr key={row.id} className={`hover:bg-gray-50 ${!editable ? "opacity-60" : ""}`}>
                         <td className="px-4 py-3 text-sm">{format(new Date(row.date), "dd MMM yyyy")}</td>

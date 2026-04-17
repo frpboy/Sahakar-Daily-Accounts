@@ -121,6 +121,8 @@ export function AccountsDataTable({ data, isLoading }: DataTableProps) {
     []
   );
 
+  // TanStack table intentionally uses non-memoizable internals; this warning is expected.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

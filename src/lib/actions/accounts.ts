@@ -2,9 +2,9 @@
 
 import { db } from "@/db";
 import { dailyAccounts, outlets, users } from "@/db/schema";
-import { dailyEntrySchema } from "@/lib/validations/entry";
+import { dailyEntrySchema, DailyEntryInput } from "@/lib/validations/entry";
 import { revalidatePath } from "next/cache";
-import { eq, and, between, sql } from "drizzle-orm";
+import { eq, and, between, sql, desc } from "drizzle-orm";
 import { createClient } from "@/lib/supabase/server";
 import { logAudit } from "@/lib/actions/audit";
 import { formatDateInput } from "@/lib/utils";
@@ -63,49 +63,80 @@ export async function submitDailyAccount(rawData: unknown) {
 
     // 5. Format date for database in the business timezone
     const dateStr = formatDateInput(validatedData.date);
+    const expenseBreakdown = validatedData.expenseBreakdown ?? [];
+    const normalizedBreakdown = expenseBreakdown
+      .filter((item) => item.amount > 0)
+      .map((item) => ({
+        category: item.category,
+        amount: Number(item.amount),
+      }));
+    const computedExpenses = normalizedBreakdown.reduce(
+      (sum, item) => sum + item.amount,
+      0
+    );
 
-    // 6. Determine create vs update for audit
-    const existing = await db
-      .select()
-      .from(dailyAccounts)
-      .where(
-        and(
-          eq(dailyAccounts.outletId, targetOutletId),
-          eq(dailyAccounts.date, dateStr)
-        )
-      )
-      .limit(1);
+    let existingRecord: typeof dailyAccounts.$inferSelect | undefined;
+    let savedEntryId = validatedData.entryId ?? "";
+    const normalizedInput: DailyEntryInput = {
+      ...validatedData,
+      expenses: computedExpenses,
+      expenseBreakdown,
+    };
 
-    const isUpdate = existing.length > 0;
+    const isUpdate = Boolean(validatedData.entryId);
+    if (validatedData.entryId) {
+      const [existingById] = await db
+        .select()
+        .from(dailyAccounts)
+        .where(eq(dailyAccounts.id, validatedData.entryId))
+        .limit(1);
 
-    // 7. Database Upsert (Insert or Update)
-    await db
-      .insert(dailyAccounts)
-      .values({
-        date: dateStr,
-        outletId: targetOutletId,
-        saleCash: validatedData.saleCash.toString(),
-        saleUpi: validatedData.saleUpi.toString(),
-        saleCredit: validatedData.saleCredit.toString(),
-        saleReturn: validatedData.saleReturn.toString(),
-        expenses: validatedData.expenses.toString(),
-        purchase: validatedData.purchase.toString(),
-        closingStock: validatedData.closingStock.toString(),
-        createdBy: userId,
-      })
-      .onConflictDoUpdate({
-        target: [dailyAccounts.date, dailyAccounts.outletId],
-        set: {
-          saleCash: validatedData.saleCash.toString(),
-          saleUpi: validatedData.saleUpi.toString(),
-          saleCredit: validatedData.saleCredit.toString(),
-          saleReturn: validatedData.saleReturn.toString(),
-          expenses: validatedData.expenses.toString(),
-          purchase: validatedData.purchase.toString(),
-          closingStock: validatedData.closingStock.toString(),
+      if (!existingById) {
+        return { success: false, error: "Entry not found." };
+      }
+
+      if (!isAdmin && existingById.outletId !== dbUser.outletId) {
+        return { success: false, error: "Forbidden" };
+      }
+
+      existingRecord = existingById;
+
+      await db
+        .update(dailyAccounts)
+        .set({
+          date: dateStr,
+          outletId: targetOutletId,
+          saleCash: normalizedInput.saleCash.toString(),
+          saleUpi: normalizedInput.saleUpi.toString(),
+          saleCredit: normalizedInput.saleCredit.toString(),
+          saleReturn: normalizedInput.saleReturn.toString(),
+          expenses: normalizedInput.expenses.toString(),
+          purchase: normalizedInput.purchase.toString(),
+          closingStock: normalizedInput.closingStock.toString(),
+          expenseBreakdown: normalizedBreakdown,
           updatedAt: new Date(),
-        },
-      });
+        })
+        .where(eq(dailyAccounts.id, validatedData.entryId));
+    } else {
+      const inserted = await db
+        .insert(dailyAccounts)
+        .values({
+          date: dateStr,
+          outletId: targetOutletId,
+          saleCash: normalizedInput.saleCash.toString(),
+          saleUpi: normalizedInput.saleUpi.toString(),
+          saleCredit: normalizedInput.saleCredit.toString(),
+          saleReturn: normalizedInput.saleReturn.toString(),
+          expenses: normalizedInput.expenses.toString(),
+          purchase: normalizedInput.purchase.toString(),
+          closingStock: normalizedInput.closingStock.toString(),
+          expenseBreakdown: normalizedBreakdown,
+          createdBy: userId,
+        })
+        .returning({ id: dailyAccounts.id });
+
+      savedEntryId = inserted[0]?.id ?? "";
+    }
 
     // 8. Log audit event
     await logAudit({
@@ -113,18 +144,19 @@ export async function submitDailyAccount(rawData: unknown) {
       userName: dbUser.name,
       action: isUpdate ? "update" : "create",
       entityType: "daily_account",
-      entityId: `${targetOutletId}:${dateStr}`,
-      oldData: isUpdate ? (existing[0] as Record<string, unknown>) : undefined,
+      entityId: savedEntryId || `${targetOutletId}:${dateStr}`,
+      oldData: isUpdate ? (existingRecord as Record<string, unknown>) : undefined,
       newData: {
         outletId: targetOutletId,
         date: dateStr,
-        saleCash: validatedData.saleCash,
-        saleUpi: validatedData.saleUpi,
-        saleCredit: validatedData.saleCredit,
-        saleReturn: validatedData.saleReturn,
-        expenses: validatedData.expenses,
-        purchase: validatedData.purchase,
-        closingStock: validatedData.closingStock,
+        saleCash: normalizedInput.saleCash,
+        saleUpi: normalizedInput.saleUpi,
+        saleCredit: normalizedInput.saleCredit,
+        saleReturn: normalizedInput.saleReturn,
+        expenses: normalizedInput.expenses,
+        purchase: normalizedInput.purchase,
+        closingStock: normalizedInput.closingStock,
+        expenseBreakdown: normalizedBreakdown,
       },
     });
 
@@ -208,8 +240,8 @@ export async function getDailyEntriesForLastDays(days: number = 7) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
-    const startDateStr = startDate.toISOString().split("T")[0];
-    const endDateStr = new Date().toISOString().split("T")[0];
+    const startDateStr = formatDateInput(startDate);
+    const endDateStr = formatDateInput(new Date());
 
     const conditions = [between(dailyAccounts.date, startDateStr, endDateStr)];
 
@@ -251,9 +283,39 @@ export async function getEntryByDateAndOutlet(date: string, outletId: string) {
       .select()
       .from(dailyAccounts)
       .where(and(eq(dailyAccounts.date, date), eq(dailyAccounts.outletId, outletId)))
+      .orderBy(desc(dailyAccounts.createdAt))
       .limit(1);
 
     return { success: true, data: entry ?? null };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function getEntryById(id: string) {
+  try {
+    const supabase = await createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return { success: false, error: "Unauthorized" };
+
+    const [dbUser] = await db.select().from(users).where(eq(users.id, authUser.id)).limit(1);
+    if (!dbUser) return { success: false, error: "User not found" };
+
+    const isAdmin = dbUser.role === "admin" || dbUser.role === "ho_accountant";
+
+    const [entry] = await db
+      .select()
+      .from(dailyAccounts)
+      .where(eq(dailyAccounts.id, id))
+      .limit(1);
+
+    if (!entry) return { success: false, error: "Entry not found" };
+
+    if (!isAdmin && dbUser.outletId !== entry.outletId) {
+      return { success: false, error: "Forbidden" };
+    }
+
+    return { success: true, data: entry };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
@@ -384,8 +446,8 @@ export async function getMonthlyAggregates(year: number, month: number) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const startDateStr = startDate.toISOString().split("T")[0];
-    const endDateStr = endDate.toISOString().split("T")[0];
+    const startDateStr = formatDateInput(startDate);
+    const endDateStr = formatDateInput(endDate);
 
     const result = await db
       .select({

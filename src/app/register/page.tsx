@@ -11,7 +11,7 @@ import Link from "next/link";
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,21 +143,9 @@ export default function RegisterPage() {
                 className="h-11 bg-white border-gray-200 focus:ring-gray-900 focus:border-gray-900 transition-all"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-gray-500 ml-1">
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="Choose a password"
-                className="h-11 bg-white border-gray-200 focus:ring-gray-900 focus:border-gray-900 transition-all"
-                required
-                minLength={6}
-              />
-            </div>
+            <p className="text-xs text-gray-500 pt-1">
+              After approval, you&apos;ll receive a secure sign-in invitation by email.
+            </p>
             <div className="pt-2">
               <Button
                 type="submit"
@@ -192,4 +180,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

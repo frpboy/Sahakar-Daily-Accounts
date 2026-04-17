@@ -5,16 +5,14 @@ import { Bell, BellOff, CheckCircle2, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function NotificationSettings() {
-  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(() => {
+    if (typeof window === "undefined") return "default";
+    if (!("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
   const [swRegistered, setSwRegistered] = useState(false);
 
   useEffect(() => {
-    if (!("Notification" in window)) {
-      setPermission("unsupported");
-      return;
-    }
-    setPermission(Notification.permission);
-
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.getRegistration("/sw.js").then((reg) => {
         setSwRegistered(!!reg);
@@ -60,7 +58,7 @@ export function NotificationSettings() {
           <div>
             <p className="text-sm font-semibold text-red-700">Notifications blocked</p>
             <p className="text-xs text-red-600 mt-1">
-              You have blocked notifications for this site. To re-enable, click the lock icon in your browser's address bar and allow notifications.
+              You have blocked notifications for this site. To re-enable, click the lock icon in your browser&apos;s address bar and allow notifications.
             </p>
           </div>
         </div>

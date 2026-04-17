@@ -31,6 +31,21 @@
 **Navigation (`src/components/shared/TopNav.tsx`):**
 - `outlet_manager` now sees the Staff link, matching the current `/admin/users` scoped-access policy
 
+## 2026-04-07 — Sentry Feedback Integration + Wizard Project Link
+
+**Client SDK (`instrumentation-client.ts`):**
+- Added `Sentry.feedbackIntegration()` to the existing Next.js client init
+- Configured feedback widget options:
+  - `colorScheme: "system"`
+  - `isNameRequired: true`
+  - `isEmailRequired: true`
+
+**Wizard run (`@sentry/wizard`):**
+- Ran `npx @sentry/wizard@latest -i nextjs --saas --org k4nn4n --project doams --quiet --ignore-git-changes`
+- The first attempt failed because the wizard expected an interactive TTY and the repo had local changes
+- Retried with non-interactive flags; the wizard completed the Sentry org/project login and selection flow
+- In this repo state, the wizard did not add new files or overwrite the existing manual setup beyond the already-applied client feedback integration
+
 ## 2026-04-07 — User Provisioning, Report Pagination, IST Date Fix, Audit Cleanup
 
 **User provisioning + RBAC (`src/lib/actions/users.ts`, `src/lib/permissions.ts`, `src/app/admin/users/page.tsx`, `src/components/admin/UsersList.tsx`, `src/components/forms/UserForm.tsx`):**
@@ -773,3 +788,53 @@ ALTER TABLE registration_requests ADD COLUMN IF NOT EXISTS password TEXT;
 - `src/proxy.ts` handles session refresh + auth redirect (Next.js 16 proxy — matcher excludes all `_next/` and API paths)
 - PWA: manifest linked, service worker at `/sw.js`, install prompt via `beforeinstallprompt`
 - Push notifications: permission-gated, local notifications work immediately; server push requires VAPID setup
+
+### 2026-04-17 — Multi-Entry Per Day + Expense Categories + Hardening Pass
+
+**Core behavior change (daily entries):**
+- `daily_accounts` no longer enforces one-row-per-outlet-per-day write behavior.
+- Server action now creates a new record by default; updates only happen when explicit `entryId` is supplied (edit mode).
+- Added `getEntryById()` and switched edit flow to `entryId` to avoid ambiguity when multiple entries exist on same date.
+
+**Expense category system:**
+- Added structured expense model to validation:
+  - `EXPENSE_CATEGORIES`
+  - `expenseBreakdown[]` (category + amount)
+  - duplicate category guard in schema
+- Added DB field `daily_accounts.expense_breakdown` (JSONB).
+- Entry form now supports:
+  - multi-select expense categories
+  - per-category amount inputs
+  - automatic `expenses` total from selected categories
+
+**Reporting/API updates:**
+- Reports endpoints now return `expenseBreakdown` data:
+  - `/api/all-reports`
+  - `/api/own-reports`
+- Own reports edit links now route via `entryId`.
+
+**Security fixes from review:**
+- Removed plaintext password collection/storage path in registration request flow.
+- Registration approval now uses invite flow (`inviteUserByEmail`) instead of creating auth users from stored request passwords.
+- Dev login exposure reduced:
+  - test login features now require `NEXT_PUBLIC_ENABLE_DEV_LOGIN=true`
+  - still disabled in production by `NODE_ENV` guard.
+
+**Date/time correctness fixes:**
+- Replaced sensitive `toISOString().split("T")[0]` usages in patched paths with `formatDateInput(...)` to keep IST business date consistency.
+
+**Tooling/lint/build maintenance:**
+- Added flat ESLint config (`eslint.config.mjs`) compatible with current Next/ESLint setup.
+- Updated `npm run lint` script to `eslint .`.
+- Fixed lint-breaking JSX/text issues discovered during run (notifications/settings/pwa prompt).
+
+**Verification run (post-change):**
+- `npx tsc --noEmit` ✅ pass
+- `npm run lint` ✅ pass (warnings only, zero errors)
+- `npm run build` ✅ pass (Next.js 16.2.2)
+
+**DB action required after pull/deploy:**
+- Run `npm run db:push`.
+- Ensure old unique index is removed if still present:
+  - `DROP INDEX IF EXISTS outlet_date_idx;`
+

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useCallback } from "react";
 import { Container } from "@/components/ui/container";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency, calculateTotalSales, calculateProfit } from "@/lib/utils";
@@ -36,11 +36,7 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"summary" | "monthly" | "annual">("summary");
 
-  useEffect(() => {
-    fetchOutletData();
-  }, [outletId]);
-
-  async function fetchOutletData() {
+  const fetchOutletData = useCallback(async () => {
     try {
       setIsLoading(true);
       
@@ -65,7 +61,11 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [outletId]);
+
+  useEffect(() => {
+    void fetchOutletData();
+  }, [fetchOutletData]);
 
   // Data aggregations
   const monthlyData = entries.reduce((acc: any[], entry) => {
@@ -296,4 +296,3 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
       </Container>
   );
 }
-

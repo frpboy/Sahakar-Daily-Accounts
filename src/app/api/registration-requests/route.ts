@@ -4,13 +4,13 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, phone, password } = body;
+    const { name, email, phone } = body;
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
     }
 
-    const result = await submitRegistrationRequest({ name, email, phone, password });
+    const result = await submitRegistrationRequest({ name, email, phone });
 
     if (result.error) {
       return NextResponse.json({ error: result.error }, { status: 409 });

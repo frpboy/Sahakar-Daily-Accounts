@@ -1,6 +1,23 @@
 import { z } from "zod";
 
+export const EXPENSE_CATEGORIES = [
+  "Rent",
+  "Utilities",
+  "Salaries",
+  "Maintenance",
+  "Transportation",
+  "Marketing",
+  "Office Supplies",
+  "Miscellaneous",
+] as const;
+
+export const expenseBreakdownItemSchema = z.object({
+  category: z.enum(EXPENSE_CATEGORIES),
+  amount: z.coerce.number().min(0, "Expense amount cannot be negative"),
+});
+
 export const dailyEntrySchema = z.object({
+  entryId: z.string().uuid().optional(),
   date: z.coerce.date(),
   outletId: z.string().uuid("Invalid outlet selected"),
 
@@ -22,6 +39,14 @@ export const dailyEntrySchema = z.object({
     .number()
     .min(0, "Sales return amount cannot be negative")
     .default(0),
+
+  expenseBreakdown: z
+    .array(expenseBreakdownItemSchema)
+    .default([])
+    .refine(
+      (items) => new Set(items.map((item) => item.category)).size === items.length,
+      "Duplicate expense categories are not allowed"
+    ),
 
   expenses: z.coerce.number().min(0, "Expenses cannot be negative").default(0),
   purchase: z.coerce

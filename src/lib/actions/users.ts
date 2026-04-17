@@ -391,16 +391,12 @@ export async function approveRequest(requestId: string, role: CreateUserInput["r
     if (!request) return { success: false, error: "Request not found" };
 
     const adminSupabase = createSupabaseAdmin();
-    const authResult = request.password
-      ? await adminSupabase.auth.admin.createUser({
-          email: request.email,
-          password: request.password,
-          email_confirm: true,
-          user_metadata: { name: request.name },
-        })
-      : await adminSupabase.auth.admin.inviteUserByEmail(request.email, {
-          data: { name: request.name },
-        });
+    const authResult = await adminSupabase.auth.admin.inviteUserByEmail(
+      request.email,
+      {
+        data: { name: request.name },
+      }
+    );
 
     if (authResult.error || !authResult.data.user) {
       return {
