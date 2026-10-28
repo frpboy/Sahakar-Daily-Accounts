@@ -135,6 +135,8 @@ export default function AdminView() {
   }, [dateRange.from, dateRange.to]);
 
   useEffect(() => {
+    // Async fetches update React state only after network work completes; keep this effect for lifecycle synchronization.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchDashboardData();
   }, [fetchDashboardData]);
 
