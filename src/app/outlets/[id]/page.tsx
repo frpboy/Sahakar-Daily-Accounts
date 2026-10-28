@@ -38,8 +38,6 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
 
   const fetchOutletData = useCallback(async () => {
     try {
-      setIsLoading(true);
-      
       // Fetch stats and all entries in parallel
       const [statsRes, entriesRes] = await Promise.all([
         fetch("/api/outlets-stats"),
