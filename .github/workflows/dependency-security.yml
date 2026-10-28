@@ -19,6 +19,10 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    env:
+      DATABASE_URL: postgresql://audit:build-only-placeholder@127.0.0.1:5432/audit
+      NEXT_PUBLIC_SUPABASE_URL: https://build-only-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: build-only-placeholder-anon-key
     steps:
       - name: Check out source
         uses: actions/checkout@v7
