@@ -8,7 +8,6 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { useEffect, useState } from "react";
 import { subDays, startOfMonth, endOfMonth, startOfYear } from "date-fns";
 
 interface DateRangeFilterProps {
@@ -17,11 +16,7 @@ interface DateRangeFilterProps {
 }
 
 export function DateRangeFilter({ onRangeChange, initialLabel = "Last 30 Days" }: DateRangeFilterProps) {
-  const [label, setLabel] = useState(initialLabel);
-
-  useEffect(() => {
-    setLabel(initialLabel);
-  }, [initialLabel]);
+  const label = initialLabel;
 
   const ranges = [
     { label: "Today", getValue: () => ({ from: new Date(), to: new Date() }) },
@@ -33,7 +28,6 @@ export function DateRangeFilter({ onRangeChange, initialLabel = "Last 30 Days" }
   ];
 
   const handleSelect = (range: typeof ranges[0]) => {
-    setLabel(range.label);
     const { from, to } = range.getValue();
     onRangeChange(from, to);
   };

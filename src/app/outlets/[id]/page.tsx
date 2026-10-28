@@ -38,8 +38,6 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
 
   const fetchOutletData = useCallback(async () => {
     try {
-      setIsLoading(true);
-      
       // Fetch stats and all entries in parallel
       const [statsRes, entriesRes] = await Promise.all([
         fetch("/api/outlets-stats"),
@@ -64,6 +62,8 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
   }, [outletId]);
 
   useEffect(() => {
+    // Async fetches update React state only after network work completes; keep this effect for lifecycle synchronization.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchOutletData();
   }, [fetchOutletData]);
 

@@ -106,6 +106,7 @@ export default function AdminView() {
   }, [dateRange.from, dateRange.to]);
 
   function handleRangeChange(from: Date, to: Date) {
+    setLoading(true);
     setDateRange({ from, to });
     const params = new URLSearchParams(searchParams.toString());
     params.set("from", from.toISOString().split("T")[0]);
@@ -115,7 +116,6 @@ export default function AdminView() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      setLoading(true);
       const params = new URLSearchParams();
       if (dateRange.from)
         params.append("from", dateRange.from.toISOString().split("T")[0]);
@@ -135,6 +135,8 @@ export default function AdminView() {
   }, [dateRange.from, dateRange.to]);
 
   useEffect(() => {
+    // Async fetches update React state only after network work completes; keep this effect for lifecycle synchronization.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchDashboardData();
   }, [fetchDashboardData]);
 
