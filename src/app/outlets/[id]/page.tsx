@@ -62,6 +62,8 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
   }, [outletId]);
 
   useEffect(() => {
+    // Async fetches update React state only after network work completes; keep this effect for lifecycle synchronization.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchOutletData();
   }, [fetchOutletData]);
 
